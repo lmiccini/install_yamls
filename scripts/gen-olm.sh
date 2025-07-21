@@ -73,3 +73,7 @@ spec:
   source: ${OPERATOR_SOURCE}
   sourceNamespace: ${OPERATOR_SOURCE_NAMESPACE}
 EOF_CAT
+
+if [[ ${STARTINGCSV} != "" ]]; then
+	echo "  startingCSV: ${OPERATOR_NAME}-operator.${STARTINGCSV}" >> ${OPERATOR_DIR}/subscription.yaml
+fi
