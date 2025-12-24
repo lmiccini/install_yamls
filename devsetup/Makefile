@@ -331,7 +331,7 @@ sno_cleanup_region2: ## Cleanup SNO for Region 2
 	bash scripts/ipv6-nat64/sno.sh --cleanup
 
 .PHONY: sno_prerequisites_cleanup
-sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove dummy dnsmasq services)
+sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove networks and dummy dnsmasq services)
 	sudo systemctl stop ${SNO_REGION1_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
 	sudo systemctl disable ${SNO_REGION1_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
 	sudo systemctl stop ${SNO_REGION2_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
@@ -339,6 +339,10 @@ sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove dummy dnsmasq se
 	sudo rm -f /etc/systemd/system/${SNO_REGION1_NETWORK}-v6-dnsmasq.service
 	sudo rm -f /etc/systemd/system/${SNO_REGION2_NETWORK}-v6-dnsmasq.service
 	sudo systemctl daemon-reload
+	sudo virsh net-destroy ${SNO_REGION1_NETWORK} 2>/dev/null || true
+	sudo virsh net-undefine ${SNO_REGION1_NETWORK} 2>/dev/null || true
+	sudo virsh net-destroy ${SNO_REGION2_NETWORK} 2>/dev/null || true
+	sudo virsh net-undefine ${SNO_REGION2_NETWORK} 2>/dev/null || true
 
 ##@ Network Interfaces
 .PHONY: crc_attach_default_interface
