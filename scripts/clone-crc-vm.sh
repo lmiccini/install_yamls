@@ -76,6 +76,10 @@ virsh net-dumpxml crc > /tmp/crc-network.xml
 sed -i "s|<name>crc</name>|<name>${TARGET_NETWORK}</name>|" /tmp/crc-network.xml
 sed -i "s|<uuid>.*</uuid>|$(uuidgen | sed 's/^/<uuid>/' | sed 's/$/<\/uuid>/')|" /tmp/crc-network.xml
 
+# Change bridge name to avoid conflicts (bridge='crc' -> bridge='crc2')
+sed -i "s|bridge='crc'|bridge='${TARGET_NETWORK}'|g" /tmp/crc-network.xml
+sed -i "s|bridge name='crc'|bridge name='${TARGET_NETWORK}'|g" /tmp/crc-network.xml
+
 # Change network range to avoid conflicts (192.168.130.x -> 192.168.131.x for crc2)
 sed -i "s|192\.168\.130\.|192.168.131.|g" /tmp/crc-network.xml
 
