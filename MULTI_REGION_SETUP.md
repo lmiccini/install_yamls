@@ -12,9 +12,10 @@ This guide describes how to deploy a multi-region OpenStack setup with CRC (Regi
 ## Prerequisites
 
 1. Pull secret file (download from https://console.redhat.com/openshift/install/pull-secret)
-2. RHEL 9 or Fedora host
+2. **RHEL 9, CentOS Stream 9, or Fedora host**
 3. Sufficient resources (16GB+ RAM, 100GB+ disk)
 4. sudo access
+5. **Microshift installation**: Script will automatically use COPR repository (works on all supported systems)
 
 ## Quick Start
 
@@ -169,6 +170,54 @@ make -C devsetup edpm_compute
 ```
 
 ## Troubleshooting
+
+### Microshift packages not available
+
+**Error:**
+```
+No match for argument: microshift
+No match for argument: microshift-networking
+```
+
+**Solution:**
+
+The script automatically uses COPR repository which works on RHEL 9, CentOS Stream 9, and Fedora. This error usually means:
+
+1. **Network connectivity issue** - Check internet connection
+2. **COPR plugin missing** - Script will install it automatically
+
+The installation flow:
+- If RHEL is registered → Try Red Hat repos first, fallback to COPR
+- If not registered → Use COPR repository directly
+
+To manually enable COPR and install:
+```bash
+# Install COPR plugin
+sudo dnf install -y 'dnf-command(copr)'
+
+# Enable Microshift COPR
+sudo dnf copr enable -y @redhat-et/microshift
+
+# Install Microshift
+sudo dnf install -y microshift microshift-networking microshift-selinux
+```
+
+**Alternative Option: Use K3s for Region 2**
+
+If COPR is not accessible, you can use K3s as a lightweight Kubernetes alternative:
+
+```bash
+# Install K3s
+curl -sfL https://get.k3s.io | sh -
+
+# Get kubeconfig
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config-k3s
+sudo chown $(id -u):$(id -g) ~/.kube/config-k3s
+
+# Use it
+export KUBECONFIG=~/.kube/config-k3s
+kubectl get nodes
+```
 
 ### Microshift not starting
 ```bash

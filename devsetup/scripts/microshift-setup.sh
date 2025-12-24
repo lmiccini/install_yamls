@@ -3,7 +3,7 @@
 # Setup Microshift for multi-region deployment
 #
 
-set -ex
+set -e
 
 MICROSHIFT_VERSION=${MICROSHIFT_VERSION:-"4.20"}
 PULL_SECRET_FILE=${1:-"${HOME}/pull-secret.txt"}
@@ -25,22 +25,52 @@ mkdir -p "${MICROSHIFT_HOME}"
 if [ -f /etc/redhat-release ]; then
     echo "Detected Red Hat-based system"
 
+    # Check if system is registered
+    REGISTERED=false
+    if command -v subscription-manager &> /dev/null; then
+        if sudo subscription-manager status &> /dev/null; then
+            REGISTERED=true
+        fi
+    fi
+
     # Install Microshift
     if ! command -v microshift &> /dev/null; then
         echo "Installing Microshift..."
 
-        # Enable required repos (adjust for your RHEL version)
-        # For RHEL 9:
-        # sudo subscription-manager repos --enable rhocp-${MICROSHIFT_VERSION}-for-rhel-9-$(uname -m)-rpms
-        # sudo subscription-manager repos --enable fast-datapath-for-rhel-9-$(uname -m)-rpms
+        # Try RHEL subscription method first if registered
+        if [ "$REGISTERED" = true ]; then
+            echo "System is registered, trying Red Hat repositories..."
+            RHEL_VERSION=$(rpm -E %rhel)
 
-        # For Fedora or if repos are already configured:
-        sudo dnf install -y microshift microshift-networking microshift-selinux
+            # Try to enable repos, but don't fail if they're not available
+            if sudo subscription-manager repos --enable "rhocp-${MICROSHIFT_VERSION}-for-rhel-${RHEL_VERSION}-$(uname -m)-rpms" 2>/dev/null && \
+               sudo subscription-manager repos --enable "fast-datapath-for-rhel-${RHEL_VERSION}-$(uname -m)-rpms" 2>/dev/null; then
+                echo "Red Hat repositories enabled successfully"
+                sudo dnf install -y microshift microshift-networking microshift-selinux
+            else
+                echo "Could not enable Red Hat repositories, falling back to COPR..."
+                REGISTERED=false
+            fi
+        fi
+
+        # Use COPR repository if not registered or if Red Hat repos failed
+        if [ "$REGISTERED" = false ]; then
+            echo "Using COPR repository for Microshift packages..."
+
+            # Install COPR plugin
+            sudo dnf install -y 'dnf-command(copr)'
+
+            # Enable Microshift COPR repository
+            sudo dnf copr enable -y @redhat-et/microshift
+
+            # Install Microshift
+            sudo dnf install -y microshift microshift-networking microshift-selinux
+        fi
     else
         echo "Microshift already installed"
     fi
 else
-    echo "ERROR: This script requires RHEL or Fedora"
+    echo "ERROR: This script requires RHEL, CentOS Stream, or Fedora"
     exit 1
 fi
 
