@@ -2978,6 +2978,7 @@ sno_cleanup_region2: ## Cleanup SNO for Region 2
 
 .PHONY: sno_cleanup_all
 sno_cleanup_all: sno_cleanup_region1 sno_cleanup_region2 ## Cleanup both SNO instances
+	$(MAKE) -C devsetup sno_prerequisites_cleanup
 
 # Legacy CRC + Microshift targets (deprecated - use SNO instead)
 .PHONY: crc_region1

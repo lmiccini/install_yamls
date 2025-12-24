@@ -272,7 +272,14 @@ microshift_cleanup: ## Cleanup Microshift installation
 	rm -rf ${MICROSHIFT_HOME}
 
 ##@ SNO (Single Node OpenShift)
+.PHONY: sno_prerequisites
+sno_prerequisites: ## Setup SNO prerequisites (dummy dnsmasq services)
+	SNO_REGION1_NETWORK=${SNO_REGION1_NETWORK} \
+	SNO_REGION2_NETWORK=${SNO_REGION2_NETWORK} \
+	bash scripts/setup-sno-prerequisites.sh
+
 .PHONY: sno_region1
+sno_region1: sno_prerequisites
 sno_region1: export WORK_DIR=${SNO_REGION1_WORK_DIR}
 sno_region1: export SNO_INSTANCE_NAME=${SNO_REGION1_INSTANCE_NAME}
 sno_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
@@ -291,6 +298,7 @@ sno_region1: ## Deploy SNO for Region 1
 	PULL_SECRET=${PULL_SECRET} bash scripts/ipv6-nat64/sno.sh --create
 
 .PHONY: sno_region2
+sno_region2: sno_prerequisites
 sno_region2: export WORK_DIR=${SNO_REGION2_WORK_DIR}
 sno_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
 sno_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
@@ -321,6 +329,16 @@ sno_cleanup_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
 sno_cleanup_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
 sno_cleanup_region2: ## Cleanup SNO for Region 2
 	bash scripts/ipv6-nat64/sno.sh --cleanup
+
+.PHONY: sno_prerequisites_cleanup
+sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove dummy dnsmasq services)
+	sudo systemctl stop ${SNO_REGION1_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
+	sudo systemctl disable ${SNO_REGION1_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
+	sudo systemctl stop ${SNO_REGION2_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
+	sudo systemctl disable ${SNO_REGION2_NETWORK}-v6-dnsmasq.service 2>/dev/null || true
+	sudo rm -f /etc/systemd/system/${SNO_REGION1_NETWORK}-v6-dnsmasq.service
+	sudo rm -f /etc/systemd/system/${SNO_REGION2_NETWORK}-v6-dnsmasq.service
+	sudo systemctl daemon-reload
 
 ##@ Network Interfaces
 .PHONY: crc_attach_default_interface
