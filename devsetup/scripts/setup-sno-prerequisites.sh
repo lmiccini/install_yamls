@@ -8,8 +8,8 @@ set -e
 
 SNO_REGION1_NETWORK=${SNO_REGION1_NETWORK:-"sno-region1-net"}
 SNO_REGION2_NETWORK=${SNO_REGION2_NETWORK:-"sno-region2-net"}
-SNO_REGION1_NETWORK_CIDR=${SNO_REGION1_NETWORK_CIDR:-"192.168.122.0/24"}
-SNO_REGION2_NETWORK_CIDR=${SNO_REGION2_NETWORK_CIDR:-"192.168.123.0/24"}
+SNO_REGION1_NETWORK_CIDR=${SNO_REGION1_NETWORK_CIDR:-"192.168.130.0/24"}
+SNO_REGION2_NETWORK_CIDR=${SNO_REGION2_NETWORK_CIDR:-"192.168.131.0/24"}
 
 echo "=== Setting up SNO prerequisites ==="
 
@@ -21,9 +21,9 @@ if ! sudo virsh net-info ${SNO_REGION1_NETWORK} &>/dev/null; then
   <name>${SNO_REGION1_NETWORK}</name>
   <forward mode='nat'/>
   <bridge name='virbr-r1' stp='on' delay='0'/>
-  <ip address='192.168.122.1' netmask='255.255.255.0'>
+  <ip address='192.168.130.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='192.168.122.2' end='192.168.122.254'/>
+      <range start='192.168.130.2' end='192.168.130.254'/>
     </dhcp>
   </ip>
 </network>
@@ -37,6 +37,17 @@ else
     echo "Network ${SNO_REGION1_NETWORK} already exists"
 fi
 
+# Ensure network is active
+if ! sudo virsh net-info ${SNO_REGION1_NETWORK} | grep -q "Active:.*yes"; then
+    echo "Network ${SNO_REGION1_NETWORK} is not active, starting it..."
+    sudo virsh net-start ${SNO_REGION1_NETWORK} || {
+        echo "ERROR: Failed to start network ${SNO_REGION1_NETWORK}"
+        echo "This might be due to a conflicting network or bridge."
+        echo "Check with: sudo virsh net-list --all"
+        exit 1
+    }
+fi
+
 # Create libvirt network for Region 2
 echo "Creating libvirt network for Region 2..."
 if ! sudo virsh net-info ${SNO_REGION2_NETWORK} &>/dev/null; then
@@ -45,9 +56,9 @@ if ! sudo virsh net-info ${SNO_REGION2_NETWORK} &>/dev/null; then
   <name>${SNO_REGION2_NETWORK}</name>
   <forward mode='nat'/>
   <bridge name='virbr-r2' stp='on' delay='0'/>
-  <ip address='192.168.123.1' netmask='255.255.255.0'>
+  <ip address='192.168.131.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='192.168.123.2' end='192.168.123.254'/>
+      <range start='192.168.131.2' end='192.168.131.254'/>
     </dhcp>
   </ip>
 </network>
@@ -59,6 +70,17 @@ EOF
     echo "Network ${SNO_REGION2_NETWORK} created"
 else
     echo "Network ${SNO_REGION2_NETWORK} already exists"
+fi
+
+# Ensure network is active
+if ! sudo virsh net-info ${SNO_REGION2_NETWORK} | grep -q "Active:.*yes"; then
+    echo "Network ${SNO_REGION2_NETWORK} is not active, starting it..."
+    sudo virsh net-start ${SNO_REGION2_NETWORK} || {
+        echo "ERROR: Failed to start network ${SNO_REGION2_NETWORK}"
+        echo "This might be due to a conflicting network or bridge."
+        echo "Check with: sudo virsh net-list --all"
+        exit 1
+    }
 fi
 
 # Create dummy dnsmasq service for Region 1
