@@ -2959,19 +2959,14 @@ set_slower_etcd_profile:  ## that is a helper for the CI jobs, where OpenShift A
 
 .PHONY: crc_region1
 crc_region1: ## Deploy CRC for Region 1
-	REGION=region1 CRC_HOME=${CRC_REGION1_HOME} CRC_INSTANCE_NAME=${CRC_REGION1_INSTANCE_NAME} \
 	$(MAKE) -C devsetup crc
 
-.PHONY: clone_crc_vm
-clone_crc_vm: ## Clone CRC VM to create second instance (crc2)
-	@echo "Cloning CRC VM to create crc2..."
-	sudo bash scripts/clone-crc-vm.sh crc crc2 crc2
-	@echo ""
-	@echo "Waiting for both VMs to be ready (60 seconds)..."
-	@sleep 60
+.PHONY: microshift_region2
+microshift_region2: ## Deploy Microshift for Region 2
+	$(MAKE) -C devsetup microshift
 
 .PHONY: crc_all
-crc_all: crc_region1 clone_crc_vm setup_crc_multi_dns ## Deploy CRC and clone it for multi-region
+crc_all: crc_region1 microshift_region2 ## Deploy CRC (Region 1) and Microshift (Region 2)
 
 .PHONY: openstack_region1
 openstack_region1: ## Deploy OpenStack in Region 1
@@ -3000,10 +2995,6 @@ edpm_deploy_region2: ## Deploy EDPM nodes in Region 2
 
 .PHONY: edpm_deploy_all
 edpm_deploy_all: edpm_deploy_region1 edpm_deploy_region2 ## Deploy EDPM in both regions
-
-.PHONY: setup_crc_multi_dns
-setup_crc_multi_dns: ## Setup DNS resolution in /etc/hosts for multiple CRC instances
-	sudo bash scripts/setup-crc-multi-dns.sh
 
 .PHONY: setup_region_routing
 setup_region_routing: ## Setup L3 routing between regions
@@ -3095,7 +3086,7 @@ configure_multi_region_keystone: ## Complete multi-region keystone configuration
 .PHONY: multi_region_full_deploy
 multi_region_full_deploy: ## Complete multi-region deployment
 	@echo "Starting multi-region deployment..."
-	@echo "Step 1: Deploying both CRC instances (includes VM cloning and DNS setup)..."
+	@echo "Step 1: Deploying CRC (Region 1) and Microshift (Region 2)..."
 	$(MAKE) crc_all
 	@echo "Step 2: Setting up routing between regions..."
 	$(MAKE) setup_region_routing
@@ -3105,8 +3096,7 @@ multi_region_full_deploy: ## Complete multi-region deployment
 	@echo "Step 4: Deploying OpenStack control planes..."
 	$(MAKE) openstack_all
 	@echo "Step 5: Configuring multi-region keystone..."
-	@echo "NOTE: You need to manually update Region 2 CR before proceeding"
-	@echo "Run 'make configure_multi_region_keystone' to generate configs"
+	@echo "NOTE: Run 'make configure_multi_region_keystone' to configure Region 2 to use Region 1 keystone"
 	@echo "Step 6: Creating EDPM VMs for both regions..."
 	REGION=region1 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES}
 	REGION=region2 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES}

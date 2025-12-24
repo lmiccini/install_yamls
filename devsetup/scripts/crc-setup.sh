@@ -16,8 +16,6 @@ DISK=${DISK:-31}
 HTTP_PROXY=${CRC_HTTP_PROXY:-""}
 HTTPS_PROXY=${CRC_HTTPS_PROXY:-""}
 CRC_MONITORING_ENABLED=${CRC_MONITORING_ENABLED:-false}
-CRC_HOME=${CRC_HOME:-"${HOME}/.crc"}
-CRC_INSTANCE_NAME=${CRC_INSTANCE_NAME:-"crc"}
 
 if [ -z "${CRC_URL}" ]; then
     echo "Please set CRC_URL as ARG1"; exit 1
@@ -42,9 +40,6 @@ if [ -z "${CRC_BIN}" ]; then
     curl -L "${CRC_URL}" | tar --wildcards -U --strip-components=1 -C ~/bin -xJf - *crc
     CRC_BIN=$(which crc)
 fi
-
-# Export CRC_HOME to enable multi-instance support
-export CRC_HOME
 
 # config CRC
 ${CRC_BIN} config set network-mode system
@@ -79,7 +74,6 @@ ${CRC_BIN} console --credentials # get the kubeadmin login and then login
 eval $(${CRC_BIN} oc-env)
 
 # login to crc env
-# Note: CRC always uses 'crc' for the cluster domain regardless of instance name
 oc login -u kubeadmin -p ${KUBEADMIN_PWD} https://api.crc.testing:6443
 
 # make sure you can push to the internal registry; without this step you'll get x509 errors
