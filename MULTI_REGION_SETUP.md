@@ -44,6 +44,10 @@ export KUBECONFIG=~/.sno-region2/ocp/auth/kubeconfig
 oc login -u kubeadmin -p 12345678 https://api.sno-region2.example.com:6443
 ```
 
+Each SNO instance has its own cluster domain:
+- Region 1: `api.sno-region1.example.com` and `*.apps.sno-region1.example.com`
+- Region 2: `api.sno-region2.example.com` and `*.apps.sno-region2.example.com`
+
 ### 3. Setup Networking (Optional)
 
 If you need L3 routing between regions for inter-region communication:
@@ -134,18 +138,22 @@ make sno_cleanup_region2
 ## Network Configuration
 
 ### Region 1 (SNO)
-- Control Plane: 192.168.122.0/24
-- InternalAPI: 172.17.0.x
-- Storage: 172.18.0.x
-- Tenant: 172.19.0.x
-- StorageMgmt: 172.20.0.x
+- Control Plane: 192.168.130.0/24
+- Cluster Network: 10.128.0.0/14
+- Service Network: 172.30.0.0/16
+- InternalAPI: 172.17.0.x (for OpenStack)
+- Storage: 172.18.0.x (for OpenStack)
+- Tenant: 172.19.0.x (for OpenStack)
+- StorageMgmt: 172.20.0.x (for OpenStack)
 
 ### Region 2 (SNO)
-- Control Plane: 192.168.123.0/24
-- InternalAPI: 172.27.0.x
-- Storage: 172.28.0.x
-- Tenant: 172.29.0.x
-- StorageMgmt: 172.30.0.x
+- Control Plane: 192.168.131.0/24
+- Cluster Network: 10.132.0.0/14
+- Service Network: 172.31.0.0/16
+- InternalAPI: 172.27.0.x (for OpenStack)
+- Storage: 172.28.0.x (for OpenStack)
+- Tenant: 172.29.0.x (for OpenStack)
+- StorageMgmt: 172.30.0.x (for OpenStack)
 
 To override network ranges:
 

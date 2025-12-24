@@ -282,6 +282,8 @@ sno_prerequisites: ## Setup SNO prerequisites (dummy dnsmasq services)
 sno_region1: sno_prerequisites
 sno_region1: export WORK_DIR=${SNO_REGION1_WORK_DIR}
 sno_region1: export SNO_INSTANCE_NAME=${SNO_REGION1_INSTANCE_NAME}
+sno_region1: export SNO_CLUSTER_NAME=sno-region1
+sno_region1: export SNO_BASE_DOMAIN=example.com
 sno_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
 sno_region1: export SNO_HOST_IP=${SNO_REGION1_HOST_IP}
 sno_region1: export SNO_MACHINE_NETWORK=192.168.130.0/24
@@ -301,6 +303,8 @@ sno_region1: ## Deploy SNO for Region 1
 sno_region2: sno_prerequisites
 sno_region2: export WORK_DIR=${SNO_REGION2_WORK_DIR}
 sno_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
+sno_region2: export SNO_CLUSTER_NAME=sno-region2
+sno_region2: export SNO_BASE_DOMAIN=example.com
 sno_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
 sno_region2: export SNO_HOST_IP=${SNO_REGION2_HOST_IP}
 sno_region2: export SNO_MACHINE_NETWORK=192.168.131.0/24

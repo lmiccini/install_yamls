@@ -71,6 +71,8 @@ SNO_HOST_MAC="${SNO_HOST_MAC:-$(echo -n 52:54:00; dd bs=1 count=3 if=/dev/random
 
 # VM config
 SNO_INSTANCE_NAME="${SNO_INSTANCE_NAME:-sno}"
+SNO_CLUSTER_NAME="${SNO_CLUSTER_NAME:-sno}"
+SNO_BASE_DOMAIN="${SNO_BASE_DOMAIN:-lab.example.com}"
 ARCH="${ARCH:-x86_64}"
 MEMORY="${MEMORY:-32768}"
 VCPUS="${VCPUS:-12}"
@@ -145,7 +147,7 @@ function create_install_iso {
     # intall-config.yaml
     cat << EOF > ./ocp/install-config.yaml
 apiVersion: v1
-baseDomain: lab.example.com
+baseDomain: ${SNO_BASE_DOMAIN}
 compute:
 - name: worker
   replicas: 0
@@ -153,7 +155,7 @@ controlPlane:
   name: master
   replicas: 1
 metadata:
-  name: sno
+  name: ${SNO_CLUSTER_NAME}
 networking:
   clusterNetwork:
   - cidr: ${SNO_CLUSTER_NETWORK}
@@ -221,13 +223,13 @@ function create_dnsmasq_config {
     cat << EOF > ${MY_TMP_DIR}/sno.conf
 log-queries
 dhcp-range=${SNO_MACHINE_NETWORK%%/*},static,${SNO_MACHINE_NETWORK##*/}
-address=/apps.sno.lab.example.com/${SNO_HOST_IP}
+address=/apps.${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN}/${SNO_HOST_IP}
 # Make sure we return NODATA-IPv4. Without this A queries are forwarded,
 # and cause lookup delay.
-address=/sno.lab.example.com/
-address=/apps.sno.lab.example.com/
-host-record=api.sno.lab.example.com,${SNO_HOST_IP}
-host-record=api-int.sno.lab.example.com,${SNO_HOST_IP}
+address=/${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN}/
+address=/apps.${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN}/
+host-record=api.${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN},${SNO_HOST_IP}
+host-record=api-int.${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN},${SNO_HOST_IP}
 dhcp-host=${SNO_HOST_MAC},[${SNO_HOST_IP}],2m
 EOF
     mkdir -p ${NAT64_IPV6_DNSMASQ_CONF_DIR}/conf.d
@@ -329,7 +331,7 @@ EOF
 
 function print_cluster_info {
     set +x
-    API_URL="https://api.sno.lab.example.com:6443"
+    API_URL="https://api.${SNO_CLUSTER_NAME}.${SNO_BASE_DOMAIN}:6443"
     echo
     echo "Source ${WORK_DIR}/sno_env to set up PATH and KUBECONFIG:"
     echo "      source ${WORK_DIR}/sno_env"
