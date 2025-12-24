@@ -50,8 +50,9 @@ TARGET_DISK="${SOURCE_DISK%.qcow2}-${TARGET_VM}.qcow2"
 echo "Source disk: ${SOURCE_DISK}"
 echo "Target disk: ${TARGET_DISK}"
 
-# Clone the disk
-qemu-img create -f qcow2 -b "${SOURCE_DISK}" -F qcow2 "${TARGET_DISK}"
+# Create a full independent copy (not COW) so both VMs can run simultaneously
+echo "Creating full disk copy (this may take a few minutes)..."
+qemu-img convert -O qcow2 "${SOURCE_DISK}" "${TARGET_DISK}"
 
 echo ""
 echo "Step 3: Cloning VM definition..."
