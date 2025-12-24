@@ -343,6 +343,10 @@ sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove networks and dum
 	sudo rm -f /etc/systemd/system/${SNO_REGION1_NETWORK}-v6-dnsmasq.service
 	sudo rm -f /etc/systemd/system/${SNO_REGION2_NETWORK}-v6-dnsmasq.service
 	sudo systemctl daemon-reload
+	sudo rm -f /etc/dnsmasq.d/sno-multiregion.conf
+	sudo rm -f /etc/NetworkManager/dnsmasq.d/sno-domains.conf
+	sudo systemctl restart dnsmasq 2>/dev/null || true
+	sudo systemctl reload NetworkManager 2>/dev/null || true
 	sudo virsh net-destroy ${SNO_REGION1_NETWORK} 2>/dev/null || true
 	sudo virsh net-undefine ${SNO_REGION1_NETWORK} 2>/dev/null || true
 	sudo virsh net-destroy ${SNO_REGION2_NETWORK} 2>/dev/null || true

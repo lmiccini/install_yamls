@@ -83,12 +83,60 @@ if ! sudo virsh net-info ${SNO_REGION2_NETWORK} | grep -q "Active:.*yes"; then
     }
 fi
 
-# Create dummy dnsmasq service for Region 1
-echo "Creating dummy dnsmasq service for Region 1..."
+# Install dnsmasq if not present
+if ! command -v dnsmasq &> /dev/null; then
+    echo "Installing dnsmasq..."
+    sudo dnf install -y dnsmasq
+fi
+
+# Create dnsmasq configuration for SNO wildcard DNS
+echo "Configuring dnsmasq for SNO wildcard DNS..."
+sudo mkdir -p /etc/dnsmasq.d
+
+sudo tee /etc/dnsmasq.d/sno-multiregion.conf > /dev/null << EOF
+# Listen on localhost only for SNO DNS
+listen-address=127.0.0.1
+bind-interfaces
+
+# Don't read /etc/hosts for these domains
+no-hosts
+
+# Wildcard DNS for Region 1
+address=/apps.sno-region1.example.com/192.168.130.10
+address=/sno-region1.example.com/192.168.130.10
+
+# Wildcard DNS for Region 2
+address=/apps.sno-region2.example.com/192.168.131.10
+address=/sno-region2.example.com/192.168.131.10
+
+# Specific host records for APIs
+host-record=api.sno-region1.example.com,192.168.130.10
+host-record=api-int.sno-region1.example.com,192.168.130.10
+host-record=api.sno-region2.example.com,192.168.131.10
+host-record=api-int.sno-region2.example.com,192.168.131.10
+EOF
+
+# Enable and start dnsmasq
+echo "Starting dnsmasq..."
+sudo systemctl enable dnsmasq
+sudo systemctl restart dnsmasq
+
+# Configure NetworkManager to use local dnsmasq for SNO domains
+if systemctl is-active NetworkManager &>/dev/null; then
+    echo "Configuring NetworkManager to use dnsmasq for SNO domains..."
+    sudo tee /etc/NetworkManager/dnsmasq.d/sno-domains.conf > /dev/null << EOF
+# Forward SNO domain queries to local dnsmasq
+server=/sno-region1.example.com/127.0.0.1
+server=/sno-region2.example.com/127.0.0.1
+EOF
+    sudo systemctl reload NetworkManager
+fi
+
+# Create dummy systemd services (for compatibility with SNO script)
 sudo tee /etc/systemd/system/${SNO_REGION1_NETWORK}-v6-dnsmasq.service > /dev/null << EOF
 [Unit]
-Description=Dummy dnsmasq service for SNO Region 1
-After=network.target
+Description=Dummy placeholder for SNO Region 1 (real DNS in dnsmasq)
+After=dnsmasq.service
 
 [Service]
 Type=oneshot
@@ -99,12 +147,10 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-# Create dummy dnsmasq service for Region 2
-echo "Creating dummy dnsmasq service for Region 2..."
 sudo tee /etc/systemd/system/${SNO_REGION2_NETWORK}-v6-dnsmasq.service > /dev/null << EOF
 [Unit]
-Description=Dummy dnsmasq service for SNO Region 2
-After=network.target
+Description=Dummy placeholder for SNO Region 2 (real DNS in dnsmasq)
+After=dnsmasq.service
 
 [Service]
 Type=oneshot
@@ -115,12 +161,7 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF
 
-# Reload systemd
-echo "Reloading systemd..."
 sudo systemctl daemon-reload
-
-# Enable and start services
-echo "Enabling and starting services..."
 sudo systemctl enable ${SNO_REGION1_NETWORK}-v6-dnsmasq.service
 sudo systemctl enable ${SNO_REGION2_NETWORK}-v6-dnsmasq.service
 sudo systemctl start ${SNO_REGION1_NETWORK}-v6-dnsmasq.service
