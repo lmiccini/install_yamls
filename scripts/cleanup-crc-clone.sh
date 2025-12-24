@@ -22,7 +22,20 @@ fi
 if virsh dominfo "${TARGET_VM}" &>/dev/null; then
     echo "Removing VM: ${TARGET_VM}"
     virsh destroy "${TARGET_VM}" 2>/dev/null || true
-    virsh undefine "${TARGET_VM}" --remove-all-storage 2>/dev/null || virsh undefine "${TARGET_VM}" 2>/dev/null || true
+
+    # Get disk paths before undefining
+    DISKS=$(virsh domblklist "${TARGET_VM}" | grep -oP '/.*\.qcow2' || true)
+
+    # Undefine the VM
+    virsh undefine "${TARGET_VM}" --nvram 2>/dev/null || virsh undefine "${TARGET_VM}" 2>/dev/null || true
+
+    # Manually remove disk files
+    for disk in ${DISKS}; do
+        if [ -f "$disk" ]; then
+            echo "Removing disk: $disk"
+            rm -f "$disk"
+        fi
+    done
 fi
 
 # Stop and undefine network if it exists
