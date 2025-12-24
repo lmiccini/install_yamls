@@ -63,6 +63,27 @@ if [ -f /etc/redhat-release ]; then
             # Enable Microshift COPR repository
             sudo dnf copr enable -y @redhat-et/microshift
 
+            # Install CRI-O dependencies (required for microshift)
+            # These are normally in fast-datapath repo, but we need alternative source
+            echo "Installing CRI-O dependencies from Kubernetes repositories..."
+
+            # Determine OS version for CRI-O repo
+            OS_VERSION=$(rpm -E %rhel)
+            CRIO_VERSION="1.28"
+
+            # Add CRI-O repository from Kubernetes project
+            cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
+[cri-o]
+name=CRI-O
+baseurl=https://pkgs.k8s.io/addons:/cri-o:/stable:/v${CRIO_VERSION}/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v${CRIO_VERSION}/rpm/repodata/repomd.xml.key
+EOF
+
+            # Install CRI-O and dependencies
+            sudo dnf install -y cri-o cri-tools
+
             # Install Microshift from COPR
             sudo dnf install -y microshift
 

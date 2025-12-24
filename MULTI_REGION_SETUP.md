@@ -188,7 +188,7 @@ The script automatically uses COPR repository which works on RHEL 9, CentOS Stre
 
 The installation flow:
 - If RHEL is registered → Try Red Hat repos first, fallback to COPR
-- If not registered → Use COPR repository directly
+- If not registered → Use COPR repository + Kubernetes repos for CRI-O
 
 To manually enable COPR and install:
 ```bash
@@ -198,11 +198,27 @@ sudo dnf install -y 'dnf-command(copr)'
 # Enable Microshift COPR
 sudo dnf copr enable -y @redhat-et/microshift
 
+# Add CRI-O repository (provides cri-o and cri-tools dependencies)
+cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
+[cri-o]
+name=CRI-O
+baseurl=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.28/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.28/rpm/repodata/repomd.xml.key
+EOF
+
+# Install CRI-O dependencies
+sudo dnf install -y cri-o cri-tools
+
 # Install Microshift
 sudo dnf install -y microshift microshift-selinux
 ```
 
-**Note**: The COPR repository provides `microshift` and `microshift-selinux` packages. The `microshift-networking` package is only available in the official Red Hat repositories (networking functionality is included in the main COPR package).
+**Note**:
+- The COPR repository provides `microshift` and `microshift-selinux` packages
+- The `microshift-networking` package is only available in official Red Hat repositories (networking functionality is included in the main COPR package)
+- CRI-O dependencies (`cri-o`, `cri-tools`) are installed from Kubernetes repositories when using COPR on unregistered systems
 
 **Alternative Option: Use K3s for Region 2**
 
