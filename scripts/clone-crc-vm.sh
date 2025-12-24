@@ -57,6 +57,18 @@ echo ""
 echo "Step 3: Cloning VM definition..."
 virsh dumpxml "${SOURCE_VM}" > /tmp/${SOURCE_VM}.xml
 
+# Check if NVRAM is used and copy it
+NVRAM_PATH=$(grep -oP '(?<=<nvram>).*(?=</nvram>)' /tmp/${SOURCE_VM}.xml || true)
+if [ -n "${NVRAM_PATH}" ]; then
+    echo "Copying NVRAM file..."
+    NVRAM_DIR=$(dirname "${NVRAM_PATH}")
+    NVRAM_FILE=$(basename "${NVRAM_PATH}")
+    TARGET_NVRAM="${NVRAM_DIR}/${TARGET_VM}_${NVRAM_FILE}"
+    cp "${NVRAM_PATH}" "${TARGET_NVRAM}"
+    # Update XML with new NVRAM path
+    sed -i "s|${NVRAM_PATH}|${TARGET_NVRAM}|g" /tmp/${SOURCE_VM}.xml
+fi
+
 # Modify XML for new VM
 sed -i "s|<name>${SOURCE_VM}</name>|<name>${TARGET_VM}</name>|" /tmp/${SOURCE_VM}.xml
 sed -i "s|${SOURCE_DISK}|${TARGET_DISK}|g" /tmp/${SOURCE_VM}.xml

@@ -23,10 +23,11 @@ if virsh dominfo "${TARGET_VM}" &>/dev/null; then
     echo "Removing VM: ${TARGET_VM}"
     virsh destroy "${TARGET_VM}" 2>/dev/null || true
 
-    # Get disk paths before undefining
+    # Get disk and NVRAM paths before undefining
     DISKS=$(virsh domblklist "${TARGET_VM}" | grep -oP '/.*\.qcow2' || true)
+    NVRAM=$(virsh dumpxml "${TARGET_VM}" | grep -oP '(?<=<nvram>).*(?=</nvram>)' || true)
 
-    # Undefine the VM
+    # Undefine the VM with NVRAM
     virsh undefine "${TARGET_VM}" --nvram 2>/dev/null || virsh undefine "${TARGET_VM}" 2>/dev/null || true
 
     # Manually remove disk files
@@ -36,6 +37,12 @@ if virsh dominfo "${TARGET_VM}" &>/dev/null; then
             rm -f "$disk"
         fi
     done
+
+    # Remove NVRAM file if it exists
+    if [ -n "$NVRAM" ] && [ -f "$NVRAM" ]; then
+        echo "Removing NVRAM: $NVRAM"
+        rm -f "$NVRAM"
+    fi
 fi
 
 # Stop and undefine network if it exists
