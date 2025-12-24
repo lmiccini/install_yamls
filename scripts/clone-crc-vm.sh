@@ -65,13 +65,24 @@ virsh dumpxml "${SOURCE_VM}" > /tmp/${SOURCE_VM}.xml
 # Check if NVRAM is used and copy it
 NVRAM_PATH=$(grep '<nvram' /tmp/${SOURCE_VM}.xml | sed -n 's/.*>\(.*\)<\/nvram>.*/\1/p' || true)
 if [ -n "${NVRAM_PATH}" ]; then
-    echo "Copying NVRAM file..."
-    echo "Source NVRAM: ${NVRAM_PATH}"
     NVRAM_DIR=$(dirname "${NVRAM_PATH}")
-    NVRAM_FILE=$(basename "${NVRAM_PATH}")
     TARGET_NVRAM="${NVRAM_DIR}/${TARGET_VM}_VARS.fd"
-    echo "Target NVRAM: ${TARGET_NVRAM}"
-    cp "${NVRAM_PATH}" "${TARGET_NVRAM}"
+
+    if [ -f "${NVRAM_PATH}" ]; then
+        echo "Copying NVRAM file..."
+        echo "Source NVRAM: ${NVRAM_PATH}"
+        echo "Target NVRAM: ${TARGET_NVRAM}"
+        cp "${NVRAM_PATH}" "${TARGET_NVRAM}"
+    else
+        echo "NVRAM file not found, will be created on first boot"
+        # Get the template path
+        NVRAM_TEMPLATE=$(grep '<nvram' /tmp/${SOURCE_VM}.xml | sed -n 's/.*template="\([^"]*\)".*/\1/p' || true)
+        if [ -n "${NVRAM_TEMPLATE}" ] && [ -f "${NVRAM_TEMPLATE}" ]; then
+            echo "Copying from template: ${NVRAM_TEMPLATE}"
+            cp "${NVRAM_TEMPLATE}" "${TARGET_NVRAM}"
+        fi
+    fi
+
     # Update XML with new NVRAM path - escape special chars for sed
     NVRAM_PATH_ESCAPED=$(echo "${NVRAM_PATH}" | sed 's/[\/&]/\\&/g')
     TARGET_NVRAM_ESCAPED=$(echo "${TARGET_NVRAM}" | sed 's/[\/&]/\\&/g')
