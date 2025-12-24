@@ -278,11 +278,15 @@ sno_region1: export SNO_INSTANCE_NAME=${SNO_REGION1_INSTANCE_NAME}
 sno_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
 sno_region1: export SNO_HOST_IP=${SNO_REGION1_HOST_IP}
 sno_region1: export SNO_MACHINE_NETWORK=192.168.122.0/24
+sno_region1: export SNO_CLUSTER_NETWORK=10.128.0.0/14
+sno_region1: export SNO_SERVICE_NETWORK=172.30.0.0/16
 sno_region1: export OCP_VERSION=${SNO_OCP_VERSION}
 sno_region1: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
 sno_region1: export MEMORY=${SNO_MEMORY}
 sno_region1: export VCPUS=${SNO_VCPUS}
 sno_region1: export DISK_SIZE=${SNO_DISK_SIZE}
+sno_region1: export NAT64_IPV6_DNSMASQ_CONF_DIR=${SNO_REGION1_WORK_DIR}/dnsmasq-conf
+sno_region1: export NAT64_IPV6_DNSMASQ_VAR_DIR=${SNO_REGION1_WORK_DIR}/dnsmasq-var
 sno_region1: ## Deploy SNO for Region 1
 	PULL_SECRET=${PULL_SECRET} bash scripts/ipv6-nat64/sno.sh --create
 
@@ -292,11 +296,15 @@ sno_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
 sno_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
 sno_region2: export SNO_HOST_IP=${SNO_REGION2_HOST_IP}
 sno_region2: export SNO_MACHINE_NETWORK=192.168.123.0/24
+sno_region2: export SNO_CLUSTER_NETWORK=10.132.0.0/14
+sno_region2: export SNO_SERVICE_NETWORK=172.31.0.0/16
 sno_region2: export OCP_VERSION=${SNO_OCP_VERSION}
 sno_region2: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
 sno_region2: export MEMORY=${SNO_MEMORY}
 sno_region2: export VCPUS=${SNO_VCPUS}
 sno_region2: export DISK_SIZE=${SNO_DISK_SIZE}
+sno_region2: export NAT64_IPV6_DNSMASQ_CONF_DIR=${SNO_REGION2_WORK_DIR}/dnsmasq-conf
+sno_region2: export NAT64_IPV6_DNSMASQ_VAR_DIR=${SNO_REGION2_WORK_DIR}/dnsmasq-var
 sno_region2: ## Deploy SNO for Region 2
 	PULL_SECRET=${PULL_SECRET} bash scripts/ipv6-nat64/sno.sh --create
 
