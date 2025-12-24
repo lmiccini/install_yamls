@@ -10,6 +10,10 @@ SNO_REGION1_NETWORK=${SNO_REGION1_NETWORK:-"sno-region1-net"}
 SNO_REGION2_NETWORK=${SNO_REGION2_NETWORK:-"sno-region2-net"}
 SNO_REGION1_NETWORK_CIDR=${SNO_REGION1_NETWORK_CIDR:-"192.168.130.0/24"}
 SNO_REGION2_NETWORK_CIDR=${SNO_REGION2_NETWORK_CIDR:-"192.168.131.0/24"}
+SNO_REGION1_HOST_IP=${SNO_REGION1_HOST_IP:-"192.168.130.10"}
+SNO_REGION1_HOST_MAC=${SNO_REGION1_HOST_MAC:-"52:54:00:aa:bb:01"}
+SNO_REGION2_HOST_IP=${SNO_REGION2_HOST_IP:-"192.168.131.10"}
+SNO_REGION2_HOST_MAC=${SNO_REGION2_HOST_MAC:-"52:54:00:aa:bb:02"}
 
 echo "=== Setting up SNO prerequisites ==="
 
@@ -23,7 +27,8 @@ if ! sudo virsh net-info ${SNO_REGION1_NETWORK} &>/dev/null; then
   <bridge name='virbr-r1' stp='on' delay='0'/>
   <ip address='192.168.130.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='192.168.130.2' end='192.168.130.254'/>
+      <range start='192.168.130.100' end='192.168.130.254'/>
+      <host mac='${SNO_REGION1_HOST_MAC}' ip='${SNO_REGION1_HOST_IP}'/>
     </dhcp>
   </ip>
 </network>
@@ -32,7 +37,7 @@ EOF
     sudo virsh net-start ${SNO_REGION1_NETWORK}
     sudo virsh net-autostart ${SNO_REGION1_NETWORK}
     rm -f /tmp/sno-region1-net.xml
-    echo "Network ${SNO_REGION1_NETWORK} created"
+    echo "Network ${SNO_REGION1_NETWORK} created with static DHCP for ${SNO_REGION1_HOST_MAC} -> ${SNO_REGION1_HOST_IP}"
 else
     echo "Network ${SNO_REGION1_NETWORK} already exists"
 fi
@@ -58,7 +63,8 @@ if ! sudo virsh net-info ${SNO_REGION2_NETWORK} &>/dev/null; then
   <bridge name='virbr-r2' stp='on' delay='0'/>
   <ip address='192.168.131.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='192.168.131.2' end='192.168.131.254'/>
+      <range start='192.168.131.100' end='192.168.131.254'/>
+      <host mac='${SNO_REGION2_HOST_MAC}' ip='${SNO_REGION2_HOST_IP}'/>
     </dhcp>
   </ip>
 </network>
@@ -67,7 +73,7 @@ EOF
     sudo virsh net-start ${SNO_REGION2_NETWORK}
     sudo virsh net-autostart ${SNO_REGION2_NETWORK}
     rm -f /tmp/sno-region2-net.xml
-    echo "Network ${SNO_REGION2_NETWORK} created"
+    echo "Network ${SNO_REGION2_NETWORK} created with static DHCP for ${SNO_REGION2_HOST_MAC} -> ${SNO_REGION2_HOST_IP}"
 else
     echo "Network ${SNO_REGION2_NETWORK} already exists"
 fi

@@ -20,7 +20,9 @@ SNO_REGION2_INSTANCE_NAME ?= sno-region2
 SNO_REGION1_NETWORK ?= sno-region1-net
 SNO_REGION2_NETWORK ?= sno-region2-net
 SNO_REGION1_HOST_IP ?= 192.168.130.10
+SNO_REGION1_HOST_MAC ?= 52:54:00:aa:bb:01
 SNO_REGION2_HOST_IP ?= 192.168.131.10
+SNO_REGION2_HOST_MAC ?= 52:54:00:aa:bb:02
 SNO_OCP_VERSION ?= latest-4.17
 SNO_MEMORY ?= 32768
 SNO_VCPUS ?= 12
@@ -275,7 +277,11 @@ microshift_cleanup: ## Cleanup Microshift installation
 .PHONY: sno_prerequisites
 sno_prerequisites: ## Setup SNO prerequisites (dummy dnsmasq services)
 	SNO_REGION1_NETWORK=${SNO_REGION1_NETWORK} \
+	SNO_REGION1_HOST_IP=${SNO_REGION1_HOST_IP} \
+	SNO_REGION1_HOST_MAC=${SNO_REGION1_HOST_MAC} \
 	SNO_REGION2_NETWORK=${SNO_REGION2_NETWORK} \
+	SNO_REGION2_HOST_IP=${SNO_REGION2_HOST_IP} \
+	SNO_REGION2_HOST_MAC=${SNO_REGION2_HOST_MAC} \
 	bash scripts/setup-sno-prerequisites.sh
 
 .PHONY: sno_region1
@@ -286,6 +292,7 @@ sno_region1: export SNO_CLUSTER_NAME=sno-region1
 sno_region1: export SNO_BASE_DOMAIN=example.com
 sno_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
 sno_region1: export SNO_HOST_IP=${SNO_REGION1_HOST_IP}
+sno_region1: export SNO_HOST_MAC=${SNO_REGION1_HOST_MAC}
 sno_region1: export SNO_MACHINE_NETWORK=192.168.130.0/24
 sno_region1: export SNO_CLUSTER_NETWORK=10.128.0.0/14
 sno_region1: export SNO_SERVICE_NETWORK=172.30.0.0/16
@@ -307,6 +314,7 @@ sno_region2: export SNO_CLUSTER_NAME=sno-region2
 sno_region2: export SNO_BASE_DOMAIN=example.com
 sno_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
 sno_region2: export SNO_HOST_IP=${SNO_REGION2_HOST_IP}
+sno_region2: export SNO_HOST_MAC=${SNO_REGION2_HOST_MAC}
 sno_region2: export SNO_MACHINE_NETWORK=192.168.131.0/24
 sno_region2: export SNO_CLUSTER_NETWORK=10.132.0.0/14
 sno_region2: export SNO_SERVICE_NETWORK=172.31.0.0/16
