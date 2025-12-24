@@ -3003,7 +3003,7 @@ edpm_deploy_all: edpm_deploy_region1 edpm_deploy_region2 ## Deploy EDPM in both 
 
 .PHONY: setup_crc_multi_dns
 setup_crc_multi_dns: ## Setup DNS resolution in /etc/hosts for multiple CRC instances
-	bash scripts/setup-crc-multi-dns.sh
+	sudo bash scripts/setup-crc-multi-dns.sh
 
 .PHONY: setup_region_routing
 setup_region_routing: ## Setup L3 routing between regions

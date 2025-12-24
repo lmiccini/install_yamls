@@ -115,6 +115,9 @@ sed -i "s|bridge name='crc'|bridge name='${TARGET_NETWORK}'|g" /tmp/crc-network.
 # Change network range to avoid conflicts (192.168.130.x -> 192.168.131.x for crc2)
 sed -i "s|192\.168\.130\.|192.168.131.|g" /tmp/crc-network.xml
 
+# Remove static DHCP host reservations (they have old MAC addresses)
+sed -i '/<host mac=/d' /tmp/crc-network.xml
+
 # Define and start new network
 virsh net-define /tmp/crc-network.xml
 virsh net-start "${TARGET_NETWORK}"

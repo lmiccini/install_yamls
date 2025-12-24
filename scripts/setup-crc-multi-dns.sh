@@ -22,8 +22,31 @@ CRC_REGION2_INSTANCE=${CRC_REGION2_INSTANCE_NAME:-"crc2"}
 
 echo "Setting up DNS resolution for multi-CRC instances..."
 
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "ERROR: This script must be run with sudo"
+    exit 1
+fi
+
 # Get IP addresses of both CRC VMs
 echo "Getting CRC VM IP addresses..."
+
+# Wait for both VMs to have IP addresses (up to 2 minutes)
+echo "Waiting for VMs to get IP addresses..."
+TIMEOUT=120
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    CRC1_IP=$(virsh domifaddr ${CRC_REGION1_INSTANCE} 2>/dev/null | grep -oP '192\.168\.130\.\d+' | head -1)
+    CRC2_IP=$(virsh domifaddr ${CRC_REGION2_INSTANCE} 2>/dev/null | grep -oP '192\.168\.130\.\d+' | head -1)
+
+    if [ -n "$CRC1_IP" ] && [ -n "$CRC2_IP" ]; then
+        break
+    fi
+
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+    echo "Waiting... (${ELAPSED}s/${TIMEOUT}s) crc1=${CRC1_IP:-waiting} crc2=${CRC2_IP:-waiting}"
+done
 
 # Try to get IPs from virsh domifaddr (preferred method)
 CRC1_IP=$(virsh domifaddr ${CRC_REGION1_INSTANCE} 2>/dev/null | grep -oP '192\.168\.130\.\d+' | head -1)
