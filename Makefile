@@ -2958,51 +2958,41 @@ set_slower_etcd_profile:  ## that is a helper for the CI jobs, where OpenShift A
 ##@ Multi-Region Deployment
 
 .PHONY: crc_region1
-crc_region1: export REGION=region1
-crc_region1: export CRC_HOME=${CRC_REGION1_HOME}
-crc_region1: export CRC_INSTANCE_NAME=${CRC_REGION1_INSTANCE_NAME}
 crc_region1: ## Deploy CRC for Region 1
+	REGION=region1 CRC_HOME=${CRC_REGION1_HOME} CRC_INSTANCE_NAME=${CRC_REGION1_INSTANCE_NAME} \
 	$(MAKE) -C devsetup crc
 
 .PHONY: crc_region2
-crc_region2: export REGION=region2
-crc_region2: export CRC_HOME=${CRC_REGION2_HOME}
-crc_region2: export CRC_INSTANCE_NAME=${CRC_REGION2_INSTANCE_NAME}
 crc_region2: ## Deploy CRC for Region 2
+	REGION=region2 CRC_HOME=${CRC_REGION2_HOME} CRC_INSTANCE_NAME=${CRC_REGION2_INSTANCE_NAME} \
 	$(MAKE) -C devsetup crc
 
 .PHONY: crc_all
 crc_all: crc_region1 crc_region2 ## Deploy both CRC instances
 
 .PHONY: openstack_region1
-openstack_region1: export REGION=region1
-openstack_region1: export NAMESPACE=openstack-region1
 openstack_region1: ## Deploy OpenStack in Region 1
+	REGION=region1 NAMESPACE=openstack-region1 \
 	$(MAKE) openstack_prep openstack
 
 .PHONY: openstack_region2
-openstack_region2: export REGION=region2
-openstack_region2: export NAMESPACE=openstack-region2
 openstack_region2: ## Deploy OpenStack in Region 2
+	REGION=region2 NAMESPACE=openstack-region2 \
 	$(MAKE) openstack_prep openstack
 
 .PHONY: openstack_all
 openstack_all: openstack_region1 openstack_region2 ## Deploy OpenStack in both regions
 
 .PHONY: edpm_deploy_region1
-edpm_deploy_region1: export REGION=region1
-edpm_deploy_region1: export DATAPLANE_COMPUTE_IP=${REGION1_DATAPLANE_COMPUTE_IP}
-edpm_deploy_region1: export DATAPLANE_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES}
-edpm_deploy_region1: export NAMESPACE=openstack-region1
 edpm_deploy_region1: ## Deploy EDPM nodes in Region 1
+	REGION=region1 DATAPLANE_COMPUTE_IP=${REGION1_DATAPLANE_COMPUTE_IP} \
+	DATAPLANE_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES} NAMESPACE=openstack-region1 \
 	$(MAKE) edpm_deploy
 
 .PHONY: edpm_deploy_region2
-edpm_deploy_region2: export REGION=region2
-edpm_deploy_region2: export DATAPLANE_COMPUTE_IP=${REGION2_DATAPLANE_COMPUTE_IP}
-edpm_deploy_region2: export DATAPLANE_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES}
-edpm_deploy_region2: export NAMESPACE=openstack-region2
 edpm_deploy_region2: ## Deploy EDPM nodes in Region 2
+	REGION=region2 DATAPLANE_COMPUTE_IP=${REGION2_DATAPLANE_COMPUTE_IP} \
+	DATAPLANE_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES} NAMESPACE=openstack-region2 \
 	$(MAKE) edpm_deploy
 
 .PHONY: edpm_deploy_all
@@ -3013,7 +3003,6 @@ setup_region_routing: ## Setup L3 routing between regions
 	bash scripts/setup-region-routing.sh
 
 .PHONY: gen_region2_service_config
-gen_region2_service_config: export REGION1_KEYSTONE_URL
 gen_region2_service_config: ## Generate Region 2 service config (pointing to Region 1 keystone)
 	@echo "Generating Region 2 service configurations..."
 	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
@@ -3025,21 +3014,17 @@ gen_region2_service_config: ## Generate Region 2 service config (pointing to Reg
 	bash scripts/gen-region2-service-config.sh
 
 .PHONY: configure_region2_endpoints
-configure_region2_endpoints: export REGION1_NAMESPACE=openstack-region1
-configure_region2_endpoints: export REGION2_NAMESPACE=openstack-region2
 configure_region2_endpoints: ## Configure Region 2 endpoints in Region 1 keystone
 	@echo "Configuring Region 2 endpoints in Region 1 keystone..."
+	REGION1_NAMESPACE=openstack-region1 REGION2_NAMESPACE=openstack-region2 \
 	bash scripts/configure-region2-endpoints.sh
 
 .PHONY: scale_down_region2_keystone
-scale_down_region2_keystone: export REGION2_NAMESPACE=openstack-region2
 scale_down_region2_keystone: ## Scale down keystone in Region 2 to 0 replicas
 	@echo "Scaling down keystone in Region 2..."
-	bash scripts/scale-down-region2-keystone.sh
+	REGION2_NAMESPACE=openstack-region2 bash scripts/scale-down-region2-keystone.sh
 
 .PHONY: patch_region2_controlplane
-patch_region2_controlplane: export REGION1_KEYSTONE_URL
-patch_region2_controlplane: export REGION2_NAMESPACE=openstack-region2
 patch_region2_controlplane: ## Automatically patch Region 2 OpenStackControlPlane to use Region 1 keystone
 	@echo "Patching Region 2 OpenStackControlPlane..."
 	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
@@ -3048,11 +3033,9 @@ patch_region2_controlplane: ## Automatically patch Region 2 OpenStackControlPlan
 		echo "Then export REGION1_KEYSTONE_URL=http://<IP>:5000"; \
 		exit 1; \
 	fi
-	bash scripts/patch-region2-controlplane.sh
+	REGION2_NAMESPACE=openstack-region2 bash scripts/patch-region2-controlplane.sh
 
 .PHONY: gen_region2_edpm_config
-gen_region2_edpm_config: export REGION1_KEYSTONE_URL
-gen_region2_edpm_config: export REGION2_NAMESPACE=openstack-region2
 gen_region2_edpm_config: ## Generate EDPM config for Region 2 (nova-compute using Region 1 keystone)
 	@echo "Generating Region 2 EDPM configuration..."
 	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
@@ -3061,7 +3044,7 @@ gen_region2_edpm_config: ## Generate EDPM config for Region 2 (nova-compute usin
 		echo "Then export REGION1_KEYSTONE_URL=http://<IP>:5000"; \
 		exit 1; \
 	fi
-	bash scripts/gen-region2-edpm-config.sh
+	REGION2_NAMESPACE=openstack-region2 bash scripts/gen-region2-edpm-config.sh
 
 .PHONY: configure_multi_region_keystone
 configure_multi_region_keystone: ## Complete multi-region keystone configuration workflow (AUTOMATED)
