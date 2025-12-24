@@ -59,15 +59,19 @@ echo "Step 3: Cloning VM definition..."
 virsh dumpxml "${SOURCE_VM}" > /tmp/${SOURCE_VM}.xml
 
 # Check if NVRAM is used and copy it
-NVRAM_PATH=$(grep -oP '(?<=<nvram>).*(?=</nvram>)' /tmp/${SOURCE_VM}.xml || true)
+NVRAM_PATH=$(grep '<nvram' /tmp/${SOURCE_VM}.xml | sed -n 's/.*>\(.*\)<\/nvram>.*/\1/p' || true)
 if [ -n "${NVRAM_PATH}" ]; then
     echo "Copying NVRAM file..."
+    echo "Source NVRAM: ${NVRAM_PATH}"
     NVRAM_DIR=$(dirname "${NVRAM_PATH}")
     NVRAM_FILE=$(basename "${NVRAM_PATH}")
-    TARGET_NVRAM="${NVRAM_DIR}/${TARGET_VM}_${NVRAM_FILE}"
+    TARGET_NVRAM="${NVRAM_DIR}/${TARGET_VM}_VARS.fd"
+    echo "Target NVRAM: ${TARGET_NVRAM}"
     cp "${NVRAM_PATH}" "${TARGET_NVRAM}"
-    # Update XML with new NVRAM path
-    sed -i "s|${NVRAM_PATH}|${TARGET_NVRAM}|g" /tmp/${SOURCE_VM}.xml
+    # Update XML with new NVRAM path - escape special chars for sed
+    NVRAM_PATH_ESCAPED=$(echo "${NVRAM_PATH}" | sed 's/[\/&]/\\&/g')
+    TARGET_NVRAM_ESCAPED=$(echo "${TARGET_NVRAM}" | sed 's/[\/&]/\\&/g')
+    sed -i "s/${NVRAM_PATH_ESCAPED}/${TARGET_NVRAM_ESCAPED}/g" /tmp/${SOURCE_VM}.xml
 fi
 
 # Modify XML for new VM
