@@ -70,6 +70,17 @@ if [ -f /etc/redhat-release ]; then
             # Determine OS version for CRI-O repo
             OS_VERSION=$(rpm -E %rhel)
             CRIO_VERSION="1.28"
+            K8S_VERSION="1.28"
+
+            # Add Kubernetes repository for cri-tools
+            cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v${K8S_VERSION}/rpm/repodata/repomd.xml.key
+EOF
 
             # Add CRI-O repository from Kubernetes project
             cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
@@ -81,8 +92,8 @@ gpgcheck=1
 gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v${CRIO_VERSION}/rpm/repodata/repomd.xml.key
 EOF
 
-            # Install CRI-O
-            sudo dnf install -y cri-o
+            # Install CRI-O and cri-tools
+            sudo dnf install -y cri-o cri-tools
 
             # Install Microshift from COPR (will pull additional dependencies)
             sudo dnf install -y microshift

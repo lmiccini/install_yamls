@@ -198,7 +198,17 @@ sudo dnf install -y 'dnf-command(copr)'
 # Enable Microshift COPR
 sudo dnf copr enable -y @redhat-et/microshift
 
-# Add CRI-O repository (provides cri-o dependency)
+# Add Kubernetes repository (provides cri-tools)
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
+EOF
+
+# Add CRI-O repository (provides cri-o)
 cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
 [cri-o]
 name=CRI-O
@@ -208,17 +218,17 @@ gpgcheck=1
 gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.28/rpm/repodata/repomd.xml.key
 EOF
 
-# Install CRI-O
-sudo dnf install -y cri-o
+# Install CRI-O and cri-tools
+sudo dnf install -y cri-o cri-tools
 
-# Install Microshift (will pull additional dependencies)
+# Install Microshift
 sudo dnf install -y microshift microshift-selinux
 ```
 
 **Note**:
 - The COPR repository provides `microshift` and `microshift-selinux` packages
 - The `microshift-networking` package is only available in official Red Hat repositories (networking functionality is included in the main COPR package)
-- CRI-O container runtime is installed from Kubernetes repositories when using COPR on unregistered systems
+- Container runtime dependencies (`cri-o` and `cri-tools`) are installed from Kubernetes repositories when using COPR on unregistered systems
 
 **Alternative Option: Use K3s for Region 2**
 
