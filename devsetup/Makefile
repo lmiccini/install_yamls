@@ -233,9 +233,8 @@ nfs_cleanup: ## removes /etc/exports.d/osp.exports, reloads nfs exports and dele
 
 ##@ CRC
 .PHONY: crc
-crc: export CRC_HOME
-crc: export CRC_INSTANCE_NAME
 crc: ## Deploys CRC using CRC_URL to download and install CRC, KUBEADMIN_PWD as the password which defaults to 12345678 and PULL_SECRET to specify the file containing the pull secret, defaults to ${PWD}/pull-secret.txt. To change the default memory and/or cpus for the VM use `CPUS=X MEMORY=Y DISK=Z make crc`.
+	CRC_HOME=${CRC_HOME} CRC_INSTANCE_NAME=${CRC_INSTANCE_NAME} \
 	bash scripts/crc-setup.sh ${CRC_URL} ${KUBEADMIN_PWD} ${PULL_SECRET}
 
 .PHONY: crc_cleanup
