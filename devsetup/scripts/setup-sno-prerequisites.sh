@@ -126,4 +126,21 @@ sudo systemctl enable ${SNO_REGION2_NETWORK}-v6-dnsmasq.service
 sudo systemctl start ${SNO_REGION1_NETWORK}-v6-dnsmasq.service
 sudo systemctl start ${SNO_REGION2_NETWORK}-v6-dnsmasq.service
 
+# Add DNS entries to /etc/hosts for SNO clusters
+echo "Adding DNS entries to /etc/hosts..."
+
+# Region 1 entries
+if ! grep -q "api.sno-region1.example.com" /etc/hosts 2>/dev/null; then
+    echo "192.168.130.10 api.sno-region1.example.com api-int.sno-region1.example.com" | sudo tee -a /etc/hosts
+    echo "192.168.130.10 console-openshift-console.apps.sno-region1.example.com" | sudo tee -a /etc/hosts
+    echo "192.168.130.10 oauth-openshift.apps.sno-region1.example.com" | sudo tee -a /etc/hosts
+fi
+
+# Region 2 entries
+if ! grep -q "api.sno-region2.example.com" /etc/hosts 2>/dev/null; then
+    echo "192.168.131.10 api.sno-region2.example.com api-int.sno-region2.example.com" | sudo tee -a /etc/hosts
+    echo "192.168.131.10 console-openshift-console.apps.sno-region2.example.com" | sudo tee -a /etc/hosts
+    echo "192.168.131.10 oauth-openshift.apps.sno-region2.example.com" | sudo tee -a /etc/hosts
+fi
+
 echo "=== SNO prerequisites setup complete ==="

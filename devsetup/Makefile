@@ -347,6 +347,8 @@ sno_prerequisites_cleanup: ## Cleanup SNO prerequisites (remove networks and dum
 	sudo virsh net-undefine ${SNO_REGION1_NETWORK} 2>/dev/null || true
 	sudo virsh net-destroy ${SNO_REGION2_NETWORK} 2>/dev/null || true
 	sudo virsh net-undefine ${SNO_REGION2_NETWORK} 2>/dev/null || true
+	sudo sed -i '/sno-region1.example.com/d' /etc/hosts 2>/dev/null || true
+	sudo sed -i '/sno-region2.example.com/d' /etc/hosts 2>/dev/null || true
 
 ##@ Network Interfaces
 .PHONY: crc_attach_default_interface
