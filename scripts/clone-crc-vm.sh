@@ -36,7 +36,11 @@ fi
 echo "Step 1: Shutting down source VM..."
 virsh shutdown "${SOURCE_VM}" || true
 echo "Waiting for VM to shut down..."
-timeout 60 bash -c "while virsh domstate ${SOURCE_VM} | grep -q running; do sleep 2; done" || true
+timeout 120 bash -c "while virsh domstate ${SOURCE_VM} | grep -q running; do sleep 2; done" || true
+
+# Give extra time for disk lock to be released
+echo "Waiting for disk lock to be released..."
+sleep 10
 
 echo ""
 echo "Step 2: Cloning VM disk..."
