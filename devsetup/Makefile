@@ -280,12 +280,11 @@ sno_region1: export SNO_HOST_IP=${SNO_REGION1_HOST_IP}
 sno_region1: export SNO_MACHINE_NETWORK=192.168.122.0/24
 sno_region1: export OCP_VERSION=${SNO_OCP_VERSION}
 sno_region1: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
-sno_region1: export PULL_SECRET=${PULL_SECRET}
 sno_region1: export MEMORY=${SNO_MEMORY}
 sno_region1: export VCPUS=${SNO_VCPUS}
 sno_region1: export DISK_SIZE=${SNO_DISK_SIZE}
 sno_region1: ## Deploy SNO for Region 1
-	bash scripts/ipv6-nat64/sno.sh --create
+	PULL_SECRET=${PULL_SECRET} bash scripts/ipv6-nat64/sno.sh --create
 
 .PHONY: sno_region2
 sno_region2: export WORK_DIR=${SNO_REGION2_WORK_DIR}
@@ -295,12 +294,11 @@ sno_region2: export SNO_HOST_IP=${SNO_REGION2_HOST_IP}
 sno_region2: export SNO_MACHINE_NETWORK=192.168.123.0/24
 sno_region2: export OCP_VERSION=${SNO_OCP_VERSION}
 sno_region2: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
-sno_region2: export PULL_SECRET=${PULL_SECRET}
 sno_region2: export MEMORY=${SNO_MEMORY}
 sno_region2: export VCPUS=${SNO_VCPUS}
 sno_region2: export DISK_SIZE=${SNO_DISK_SIZE}
 sno_region2: ## Deploy SNO for Region 2
-	bash scripts/ipv6-nat64/sno.sh --create
+	PULL_SECRET=${PULL_SECRET} bash scripts/ipv6-nat64/sno.sh --create
 
 .PHONY: sno_cleanup_region1
 sno_cleanup_region1: export WORK_DIR=${SNO_REGION1_WORK_DIR}
