@@ -2962,13 +2962,16 @@ crc_region1: ## Deploy CRC for Region 1
 	REGION=region1 CRC_HOME=${CRC_REGION1_HOME} CRC_INSTANCE_NAME=${CRC_REGION1_INSTANCE_NAME} \
 	$(MAKE) -C devsetup crc
 
-.PHONY: crc_region2
-crc_region2: ## Deploy CRC for Region 2
-	REGION=region2 CRC_HOME=${CRC_REGION2_HOME} CRC_INSTANCE_NAME=${CRC_REGION2_INSTANCE_NAME} \
-	$(MAKE) -C devsetup crc
+.PHONY: clone_crc_vm
+clone_crc_vm: ## Clone CRC VM to create second instance (crc2)
+	@echo "Cloning CRC VM to create crc2..."
+	sudo bash scripts/clone-crc-vm.sh crc crc2 crc2
+	@echo ""
+	@echo "Waiting for both VMs to be ready (60 seconds)..."
+	@sleep 60
 
 .PHONY: crc_all
-crc_all: crc_region1 crc_region2 ## Deploy both CRC instances
+crc_all: crc_region1 clone_crc_vm setup_crc_multi_dns ## Deploy CRC and clone it for multi-region
 
 .PHONY: openstack_region1
 openstack_region1: ## Deploy OpenStack in Region 1
@@ -3092,24 +3095,22 @@ configure_multi_region_keystone: ## Complete multi-region keystone configuration
 .PHONY: multi_region_full_deploy
 multi_region_full_deploy: ## Complete multi-region deployment
 	@echo "Starting multi-region deployment..."
-	@echo "Step 1: Deploying both CRC instances..."
+	@echo "Step 1: Deploying both CRC instances (includes VM cloning and DNS setup)..."
 	$(MAKE) crc_all
-	@echo "Step 2: Setting up DNS resolution for both CRC instances..."
-	$(MAKE) setup_crc_multi_dns
-	@echo "Step 3: Setting up routing between regions..."
+	@echo "Step 2: Setting up routing between regions..."
 	$(MAKE) setup_region_routing
-	@echo "Step 4: Deploying networking for both regions..."
+	@echo "Step 3: Deploying networking for both regions..."
 	REGION=region1 $(MAKE) nncp metallb_config
 	REGION=region2 $(MAKE) nncp metallb_config
-	@echo "Step 5: Deploying OpenStack control planes..."
+	@echo "Step 4: Deploying OpenStack control planes..."
 	$(MAKE) openstack_all
-	@echo "Step 6: Configuring multi-region keystone..."
+	@echo "Step 5: Configuring multi-region keystone..."
 	@echo "NOTE: You need to manually update Region 2 CR before proceeding"
 	@echo "Run 'make configure_multi_region_keystone' to generate configs"
-	@echo "Step 7: Creating EDPM VMs for both regions..."
+	@echo "Step 6: Creating EDPM VMs for both regions..."
 	REGION=region1 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES}
 	REGION=region2 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES}
-	@echo "Step 8: Deploying dataplane for both regions..."
+	@echo "Step 7: Deploying dataplane for both regions..."
 	$(MAKE) edpm_deploy_all
 	@echo "Multi-region deployment complete!"
 	@echo ""
