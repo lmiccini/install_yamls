@@ -91,8 +91,11 @@ rm /tmp/crc-network.xml
 
 echo ""
 echo "Step 5: Updating VM network attachment..."
-# Get the VM's network interface and update it to use new network
-virt-xml "${TARGET_VM}" --edit --network network="${TARGET_NETWORK}"
+# Update the VM's network interface to use new network
+virsh dumpxml "${TARGET_VM}" > /tmp/${TARGET_VM}-update.xml
+sed -i "s|<source network='crc'/>|<source network='${TARGET_NETWORK}'/>|g" /tmp/${TARGET_VM}-update.xml
+virsh define /tmp/${TARGET_VM}-update.xml
+rm /tmp/${TARGET_VM}-update.xml
 
 echo ""
 echo "Step 6: Starting VMs..."
