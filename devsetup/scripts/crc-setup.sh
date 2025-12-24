@@ -79,7 +79,8 @@ ${CRC_BIN} console --credentials # get the kubeadmin login and then login
 eval $(${CRC_BIN} oc-env)
 
 # login to crc env
-oc login -u kubeadmin -p ${KUBEADMIN_PWD} https://api.${CRC_INSTANCE_NAME}.testing:6443
+# Note: CRC always uses 'crc' for the cluster domain regardless of instance name
+oc login -u kubeadmin -p ${KUBEADMIN_PWD} https://api.crc.testing:6443
 
 # make sure you can push to the internal registry; without this step you'll get x509 errors
 echo -n "Adding router-ca to system certs to allow accessing the crc image registry"
