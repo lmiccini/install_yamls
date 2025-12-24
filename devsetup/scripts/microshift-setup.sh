@@ -81,10 +81,10 @@ gpgcheck=1
 gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v${CRIO_VERSION}/rpm/repodata/repomd.xml.key
 EOF
 
-            # Install CRI-O and dependencies
-            sudo dnf install -y cri-o cri-tools
+            # Install CRI-O
+            sudo dnf install -y cri-o
 
-            # Install Microshift from COPR
+            # Install Microshift from COPR (will pull additional dependencies)
             sudo dnf install -y microshift
 
             # Install SELinux policies (available in COPR)

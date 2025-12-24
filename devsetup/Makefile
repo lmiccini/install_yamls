@@ -243,7 +243,7 @@ microshift: ## Setup Microshift for Region 2 using PULL_SECRET
 microshift_cleanup: ## Cleanup Microshift installation
 	sudo systemctl stop microshift || true
 	sudo systemctl disable microshift || true
-	sudo dnf remove -y microshift microshift-networking microshift-selinux microshift-greenboot microshift-release-info microshift-selinux-policy microshift-olm cri-o cri-tools || true
+	sudo dnf remove -y microshift microshift-networking microshift-selinux microshift-greenboot microshift-release-info microshift-selinux-policy microshift-olm cri-o || true
 	sudo rm -rf /var/lib/microshift
 	sudo rm -rf /etc/microshift
 	sudo rm -rf /etc/crio/openshift-pull-secret
