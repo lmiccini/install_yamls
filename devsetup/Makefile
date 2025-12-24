@@ -243,10 +243,16 @@ microshift: ## Setup Microshift for Region 2 using PULL_SECRET
 microshift_cleanup: ## Cleanup Microshift installation
 	sudo systemctl stop microshift || true
 	sudo systemctl disable microshift || true
-	sudo dnf remove -y microshift microshift-networking microshift-selinux || true
+	sudo dnf remove -y microshift microshift-networking microshift-selinux microshift-greenboot microshift-release-info microshift-selinux-policy microshift-olm || true
 	sudo rm -rf /var/lib/microshift
 	sudo rm -rf /etc/microshift
 	sudo rm -rf /etc/crio/openshift-pull-secret
+	sudo firewall-cmd --permanent --zone=public --remove-port=80/tcp || true
+	sudo firewall-cmd --permanent --zone=public --remove-port=443/tcp || true
+	sudo firewall-cmd --permanent --zone=public --remove-port=6443/tcp || true
+	sudo firewall-cmd --permanent --zone=trusted --remove-source=10.42.0.0/16 || true
+	sudo firewall-cmd --permanent --zone=trusted --remove-source=10.43.0.0/16 || true
+	sudo firewall-cmd --reload || true
 	rm -rf ${MICROSHIFT_HOME}
 
 ##@ Network Interfaces

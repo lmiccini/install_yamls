@@ -199,8 +199,10 @@ sudo dnf install -y 'dnf-command(copr)'
 sudo dnf copr enable -y @redhat-et/microshift
 
 # Install Microshift
-sudo dnf install -y microshift microshift-networking microshift-selinux
+sudo dnf install -y microshift microshift-selinux
 ```
+
+**Note**: The COPR repository provides `microshift` and `microshift-selinux` packages. The `microshift-networking` package is only available in the official Red Hat repositories (networking functionality is included in the main COPR package).
 
 **Alternative Option: Use K3s for Region 2**
 

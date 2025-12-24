@@ -63,8 +63,13 @@ if [ -f /etc/redhat-release ]; then
             # Enable Microshift COPR repository
             sudo dnf copr enable -y @redhat-et/microshift
 
-            # Install Microshift
-            sudo dnf install -y microshift microshift-networking microshift-selinux
+            # Install Microshift from COPR
+            sudo dnf install -y microshift
+
+            # Install SELinux policies (available in COPR)
+            sudo dnf install -y microshift-selinux
+
+            # Note: microshift-networking package is not available in COPR (included in main package)
         fi
     else
         echo "Microshift already installed"
