@@ -31,6 +31,15 @@ if [ -z "$EDPM_DEPLOY_DIR" ]; then
     echo "Please set EDPM_DEPLOY_DIR"; exit 1
 fi
 
+# Multi-region support: default to region1 if not set
+REGION=${REGION:-region1}
+# Add region suffix to node names (e.g., edpm-compute-0-region1)
+if [ "$REGION" != "region1" ]; then
+    REGION_SUFFIX="-${REGION}"
+else
+    REGION_SUFFIX=""
+fi
+
 NAME=${KIND,,}
 
 if [ ! -d ${EDPM_DEPLOY_DIR} ]; then
@@ -61,10 +70,10 @@ patches:
       path: /spec/preProvisioned
       value: true
     - op: replace
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0/ansible/ansibleHost
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0${REGION_SUFFIX}/ansible/ansibleHost
       value: ${EDPM_NODE_IP}
     - op: replace
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0/networks
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0${REGION_SUFFIX}/networks
       value:
         - name: ctlplane
           subnetName: subnet1
@@ -165,19 +174,19 @@ if [ "$EDPM_TOTAL_NODES" -gt 1 ]; then
         fi
 cat <<EOF >>kustomization.yaml
     - op: copy
-      from: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}
+      from: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-0${REGION_SUFFIX}
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}
     - op: replace
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}/ansible/ansibleHost
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}/ansible/ansibleHost
       value: ${IP_ADDRESS_PREFIX}
     - op: replace
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}/hostName
-      value: edpm-${EDPM_SERVER_ROLE}-${INDEX}
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}/hostName
+      value: edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}
 EOF
 if [ -n "$BGP" ] && [ "$BGP" = "ovn" ]; then
 cat <<EOF >>kustomization.yaml
     - op: add
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}/ansible/ansibleVars
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}/ansible/ansibleVars
       value:
         edpm_ovn_bgp_agent_local_ovn_peer_ips: ['100.64.$((1+${INDEX})).5', '100.65.$((1+${INDEX})).5']
         edpm_frr_bgp_peers: ['100.64.$((1+${INDEX})).5', '100.65.$((1+${INDEX})).5']
@@ -185,7 +194,7 @@ EOF
 fi
 cat <<EOF >>kustomization.yaml
     - op: add
-      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}/networks
+      path: /spec/nodes/edpm-${EDPM_SERVER_ROLE}-${INDEX}${REGION_SUFFIX}/networks
       value:
         - name: CtlPlane
           subnetName: subnet1

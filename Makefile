@@ -46,12 +46,51 @@ CLEANUP_DIR_CMD					 ?= rm -Rf
 # be also cloned from OPENSTACK_REPO/OPENSTACK_BRANCH.
 CHECKOUT_FROM_OPENSTACK_REF	?= false
 
-NETWORK_INTERNALAPI_ADDRESS_PREFIX 	?= 172.17.0
-NETWORK_STORAGE_ADDRESS_PREFIX 	?= 172.18.0
-NETWORK_TENANT_ADDRESS_PREFIX 	?= 172.19.0
-NETWORK_STORAGEMGMT_ADDRESS_PREFIX 	?= 172.20.0
-NETWORK_DESIGNATE_ADDRESS_PREFIX 	?= 172.28.0
-NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX 	?= 172.50.0
+# Multi-Region Configuration
+REGION ?= region1
+
+# Region 1 Network Configuration
+REGION1_CTLPLANE_NETWORK ?= 192.168.122.0/24
+REGION1_NETWORK_INTERNALAPI_ADDRESS_PREFIX ?= 172.17.0
+REGION1_NETWORK_STORAGE_ADDRESS_PREFIX ?= 172.18.0
+REGION1_NETWORK_TENANT_ADDRESS_PREFIX ?= 172.19.0
+REGION1_NETWORK_STORAGEMGMT_ADDRESS_PREFIX ?= 172.20.0
+REGION1_NETWORK_DESIGNATE_ADDRESS_PREFIX ?= 172.28.0
+REGION1_NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX ?= 172.50.0
+
+# Region 2 Network Configuration
+REGION2_CTLPLANE_NETWORK ?= 192.168.123.0/24
+REGION2_NETWORK_INTERNALAPI_ADDRESS_PREFIX ?= 172.27.0
+REGION2_NETWORK_STORAGE_ADDRESS_PREFIX ?= 172.28.0
+REGION2_NETWORK_TENANT_ADDRESS_PREFIX ?= 172.29.0
+REGION2_NETWORK_STORAGEMGMT_ADDRESS_PREFIX ?= 172.30.0
+REGION2_NETWORK_DESIGNATE_ADDRESS_PREFIX ?= 172.38.0
+REGION2_NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX ?= 172.60.0
+
+# Select network configuration based on REGION
+ifeq ($(REGION), region1)
+    NETWORK_INTERNALAPI_ADDRESS_PREFIX := $(REGION1_NETWORK_INTERNALAPI_ADDRESS_PREFIX)
+    NETWORK_STORAGE_ADDRESS_PREFIX := $(REGION1_NETWORK_STORAGE_ADDRESS_PREFIX)
+    NETWORK_TENANT_ADDRESS_PREFIX := $(REGION1_NETWORK_TENANT_ADDRESS_PREFIX)
+    NETWORK_STORAGEMGMT_ADDRESS_PREFIX := $(REGION1_NETWORK_STORAGEMGMT_ADDRESS_PREFIX)
+    NETWORK_DESIGNATE_ADDRESS_PREFIX := $(REGION1_NETWORK_DESIGNATE_ADDRESS_PREFIX)
+    NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX := $(REGION1_NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX)
+else ifeq ($(REGION), region2)
+    NETWORK_INTERNALAPI_ADDRESS_PREFIX := $(REGION2_NETWORK_INTERNALAPI_ADDRESS_PREFIX)
+    NETWORK_STORAGE_ADDRESS_PREFIX := $(REGION2_NETWORK_STORAGE_ADDRESS_PREFIX)
+    NETWORK_TENANT_ADDRESS_PREFIX := $(REGION2_NETWORK_TENANT_ADDRESS_PREFIX)
+    NETWORK_STORAGEMGMT_ADDRESS_PREFIX := $(REGION2_NETWORK_STORAGEMGMT_ADDRESS_PREFIX)
+    NETWORK_DESIGNATE_ADDRESS_PREFIX := $(REGION2_NETWORK_DESIGNATE_ADDRESS_PREFIX)
+    NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX := $(REGION2_NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX)
+else
+    # Default to Region 1 values if REGION is not set or has an invalid value
+    NETWORK_INTERNALAPI_ADDRESS_PREFIX ?= 172.17.0
+    NETWORK_STORAGE_ADDRESS_PREFIX ?= 172.18.0
+    NETWORK_TENANT_ADDRESS_PREFIX ?= 172.19.0
+    NETWORK_STORAGEMGMT_ADDRESS_PREFIX ?= 172.20.0
+    NETWORK_DESIGNATE_ADDRESS_PREFIX ?= 172.28.0
+    NETWORK_DESIGNATE_EXT_ADDRESS_PREFIX ?= 172.50.0
+endif
 INTERNALAPI_HOST_ROUTES ?=
 STORAGE_HOST_ROUTES ?=
 TENANT_HOST_ROUTES ?=
@@ -391,6 +430,35 @@ BAREMETAL_OS_IMG           ?=
 
 # Dataplane Operator
 DATAPLANE_TIMEOUT                                ?= 30m
+
+# Region-specific EDPM configuration
+REGION1_DATAPLANE_TOTAL_NODES                    ?= 2
+REGION1_DATAPLANE_COMPUTE_IP                     ?= 192.168.122.100
+REGION1_DATAPLANE_NETWORKER_IP                   ?= 192.168.122.200
+REGION1_DATAPLANE_SSHD_ALLOWED_RANGES            ?= ['192.168.122.0/24']
+REGION1_DATAPLANE_DEFAULT_GW                     ?= 192.168.122.1
+
+REGION2_DATAPLANE_TOTAL_NODES                    ?= 2
+REGION2_DATAPLANE_COMPUTE_IP                     ?= 192.168.123.100
+REGION2_DATAPLANE_NETWORKER_IP                   ?= 192.168.123.200
+REGION2_DATAPLANE_SSHD_ALLOWED_RANGES            ?= ['192.168.123.0/24']
+REGION2_DATAPLANE_DEFAULT_GW                     ?= 192.168.123.1
+
+# Select EDPM configuration based on REGION
+ifeq ($(REGION), region1)
+    DATAPLANE_TOTAL_NODES := $(REGION1_DATAPLANE_TOTAL_NODES)
+    DATAPLANE_COMPUTE_IP := $(REGION1_DATAPLANE_COMPUTE_IP)
+    DATAPLANE_NETWORKER_IP := $(REGION1_DATAPLANE_NETWORKER_IP)
+    DATAPLANE_SSHD_ALLOWED_RANGES := $(REGION1_DATAPLANE_SSHD_ALLOWED_RANGES)
+    DATAPLANE_DEFAULT_GW := $(REGION1_DATAPLANE_DEFAULT_GW)
+else ifeq ($(REGION), region2)
+    DATAPLANE_TOTAL_NODES := $(REGION2_DATAPLANE_TOTAL_NODES)
+    DATAPLANE_COMPUTE_IP := $(REGION2_DATAPLANE_COMPUTE_IP)
+    DATAPLANE_NETWORKER_IP := $(REGION2_DATAPLANE_NETWORKER_IP)
+    DATAPLANE_SSHD_ALLOWED_RANGES := $(REGION2_DATAPLANE_SSHD_ALLOWED_RANGES)
+    DATAPLANE_DEFAULT_GW := $(REGION2_DATAPLANE_DEFAULT_GW)
+endif
+
 ifeq ($(NETWORK_BGP), true)
 ifeq ($(BGP_OVN_ROUTING), true)
 DATAPLANE_KUSTOMIZE_SCENARIO                     ?= bgp_ovn_cluster
@@ -2886,3 +2954,174 @@ set_slower_etcd_profile:  ## that is a helper for the CI jobs, where OpenShift A
 	# need to wait until the etcd pod would apply new rules
 	sleep 60
 	timeout $(TIMEOUT) bash -c "while ! (timeout 5 oc get pods -n openshift-etcd -o jsonpath='{.items[*].status.phase}' | grep -qE '^Running'); do sleep 10; done"
+
+##@ Multi-Region Deployment
+
+.PHONY: crc_region1
+crc_region1: export REGION=region1
+crc_region1: export CRC_HOME=${CRC_REGION1_HOME}
+crc_region1: export CRC_INSTANCE_NAME=${CRC_REGION1_INSTANCE_NAME}
+crc_region1: ## Deploy CRC for Region 1
+	$(MAKE) -C devsetup crc
+
+.PHONY: crc_region2
+crc_region2: export REGION=region2
+crc_region2: export CRC_HOME=${CRC_REGION2_HOME}
+crc_region2: export CRC_INSTANCE_NAME=${CRC_REGION2_INSTANCE_NAME}
+crc_region2: ## Deploy CRC for Region 2
+	$(MAKE) -C devsetup crc
+
+.PHONY: crc_all
+crc_all: crc_region1 crc_region2 ## Deploy both CRC instances
+
+.PHONY: openstack_region1
+openstack_region1: export REGION=region1
+openstack_region1: export NAMESPACE=openstack-region1
+openstack_region1: ## Deploy OpenStack in Region 1
+	$(MAKE) openstack_prep openstack
+
+.PHONY: openstack_region2
+openstack_region2: export REGION=region2
+openstack_region2: export NAMESPACE=openstack-region2
+openstack_region2: ## Deploy OpenStack in Region 2
+	$(MAKE) openstack_prep openstack
+
+.PHONY: openstack_all
+openstack_all: openstack_region1 openstack_region2 ## Deploy OpenStack in both regions
+
+.PHONY: edpm_deploy_region1
+edpm_deploy_region1: export REGION=region1
+edpm_deploy_region1: export DATAPLANE_COMPUTE_IP=${REGION1_DATAPLANE_COMPUTE_IP}
+edpm_deploy_region1: export DATAPLANE_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES}
+edpm_deploy_region1: export NAMESPACE=openstack-region1
+edpm_deploy_region1: ## Deploy EDPM nodes in Region 1
+	$(MAKE) edpm_deploy
+
+.PHONY: edpm_deploy_region2
+edpm_deploy_region2: export REGION=region2
+edpm_deploy_region2: export DATAPLANE_COMPUTE_IP=${REGION2_DATAPLANE_COMPUTE_IP}
+edpm_deploy_region2: export DATAPLANE_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES}
+edpm_deploy_region2: export NAMESPACE=openstack-region2
+edpm_deploy_region2: ## Deploy EDPM nodes in Region 2
+	$(MAKE) edpm_deploy
+
+.PHONY: edpm_deploy_all
+edpm_deploy_all: edpm_deploy_region1 edpm_deploy_region2 ## Deploy EDPM in both regions
+
+.PHONY: setup_region_routing
+setup_region_routing: ## Setup L3 routing between regions
+	bash scripts/setup-region-routing.sh
+
+.PHONY: gen_region2_service_config
+gen_region2_service_config: export REGION1_KEYSTONE_URL
+gen_region2_service_config: ## Generate Region 2 service config (pointing to Region 1 keystone)
+	@echo "Generating Region 2 service configurations..."
+	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
+		echo "ERROR: REGION1_KEYSTONE_URL must be set"; \
+		echo "Get it with: oc get svc -n openstack-region1 keystone-internal -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"; \
+		echo "Then export REGION1_KEYSTONE_URL=http://<IP>:5000"; \
+		exit 1; \
+	fi
+	bash scripts/gen-region2-service-config.sh
+
+.PHONY: configure_region2_endpoints
+configure_region2_endpoints: export REGION1_NAMESPACE=openstack-region1
+configure_region2_endpoints: export REGION2_NAMESPACE=openstack-region2
+configure_region2_endpoints: ## Configure Region 2 endpoints in Region 1 keystone
+	@echo "Configuring Region 2 endpoints in Region 1 keystone..."
+	bash scripts/configure-region2-endpoints.sh
+
+.PHONY: scale_down_region2_keystone
+scale_down_region2_keystone: export REGION2_NAMESPACE=openstack-region2
+scale_down_region2_keystone: ## Scale down keystone in Region 2 to 0 replicas
+	@echo "Scaling down keystone in Region 2..."
+	bash scripts/scale-down-region2-keystone.sh
+
+.PHONY: patch_region2_controlplane
+patch_region2_controlplane: export REGION1_KEYSTONE_URL
+patch_region2_controlplane: export REGION2_NAMESPACE=openstack-region2
+patch_region2_controlplane: ## Automatically patch Region 2 OpenStackControlPlane to use Region 1 keystone
+	@echo "Patching Region 2 OpenStackControlPlane..."
+	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
+		echo "ERROR: REGION1_KEYSTONE_URL must be set"; \
+		echo "Get it with: oc get svc -n openstack-region1 keystone-internal -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"; \
+		echo "Then export REGION1_KEYSTONE_URL=http://<IP>:5000"; \
+		exit 1; \
+	fi
+	bash scripts/patch-region2-controlplane.sh
+
+.PHONY: gen_region2_edpm_config
+gen_region2_edpm_config: export REGION1_KEYSTONE_URL
+gen_region2_edpm_config: export REGION2_NAMESPACE=openstack-region2
+gen_region2_edpm_config: ## Generate EDPM config for Region 2 (nova-compute using Region 1 keystone)
+	@echo "Generating Region 2 EDPM configuration..."
+	@if [ -z "$$REGION1_KEYSTONE_URL" ]; then \
+		echo "ERROR: REGION1_KEYSTONE_URL must be set"; \
+		echo "Get it with: oc get svc -n openstack-region1 keystone-internal -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"; \
+		echo "Then export REGION1_KEYSTONE_URL=http://<IP>:5000"; \
+		exit 1; \
+	fi
+	bash scripts/gen-region2-edpm-config.sh
+
+.PHONY: configure_multi_region_keystone
+configure_multi_region_keystone: ## Complete multi-region keystone configuration workflow (AUTOMATED)
+	@echo "=== Multi-Region Keystone Configuration (Automated) ==="
+	@echo ""
+	@echo "This will automatically configure Region 2 to use Region 1's keystone service."
+	@echo ""
+	@echo "Step 1: Getting Region 1 keystone URL..."
+	$(eval REGION1_KEYSTONE_IP := $(shell oc get svc -n openstack-region1 keystone-internal -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null))
+	@if [ -z "$(REGION1_KEYSTONE_IP)" ]; then \
+		echo "ERROR: Could not get Region 1 keystone IP"; \
+		echo "Make sure Region 1 OpenStack is deployed with keystone LoadBalancer"; \
+		exit 1; \
+	fi
+	@echo "Region 1 Keystone URL: http://$(REGION1_KEYSTONE_IP):5000"
+	@echo ""
+	@echo "Step 2: Automatically patching Region 2 OpenStackControlPlane CR..."
+	REGION1_KEYSTONE_URL=http://$(REGION1_KEYSTONE_IP):5000 $(MAKE) patch_region2_controlplane
+	@echo ""
+	@echo "Step 3: Waiting for Region 2 services to reconcile (60 seconds)..."
+	@sleep 60
+	@echo ""
+	@echo "Step 4: Configuring Region 2 endpoints in Region 1 keystone..."
+	$(MAKE) configure_region2_endpoints
+	@echo ""
+	@echo "Step 5: Scaling down Region 2 keystone..."
+	$(MAKE) scale_down_region2_keystone
+	@echo ""
+	@echo "Step 6: Generating Region 2 EDPM configuration..."
+	REGION1_KEYSTONE_URL=http://$(REGION1_KEYSTONE_IP):5000 $(MAKE) gen_region2_edpm_config
+	@echo ""
+	@echo "=== Configuration Complete ==="
+	@echo ""
+	@echo "Multi-region keystone setup is complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "1. Deploy Region 2 EDPM nodes: REGION=region2 make -C devsetup edpm_compute EDPM_TOTAL_NODES=2"
+	@echo "2. Update your Region 2 OpenStackDataPlaneNodeSet to include 'nova-region2' service"
+	@echo "3. Deploy dataplane: make edpm_deploy_region2"
+
+.PHONY: multi_region_full_deploy
+multi_region_full_deploy: ## Complete multi-region deployment
+	@echo "Starting multi-region deployment..."
+	@echo "Step 1: Deploying both CRC instances..."
+	$(MAKE) crc_all
+	@echo "Step 2: Setting up routing between regions..."
+	$(MAKE) setup_region_routing
+	@echo "Step 3: Deploying networking for both regions..."
+	REGION=region1 $(MAKE) nncp metallb_config
+	REGION=region2 $(MAKE) nncp metallb_config
+	@echo "Step 4: Deploying OpenStack control planes..."
+	$(MAKE) openstack_all
+	@echo "Step 5: Configuring multi-region keystone..."
+	@echo "NOTE: You need to manually update Region 2 CR before proceeding"
+	@echo "Run 'make configure_multi_region_keystone' to generate configs"
+	@echo "Step 6: Creating EDPM VMs for both regions..."
+	REGION=region1 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION1_DATAPLANE_TOTAL_NODES}
+	REGION=region2 $(MAKE) -C devsetup edpm_compute EDPM_TOTAL_NODES=${REGION2_DATAPLANE_TOTAL_NODES}
+	@echo "Step 7: Deploying dataplane for both regions..."
+	$(MAKE) edpm_deploy_all
+	@echo "Multi-region deployment complete!"
+	@echo ""
+	@echo "IMPORTANT: Remember to run 'make configure_multi_region_keystone' to set up shared keystone"

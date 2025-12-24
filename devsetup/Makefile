@@ -8,6 +8,25 @@ DOWNLOAD_TOOLS_SELECTION ?= all
 CRC_HTTP_PROXY ?=
 CRC_HTTPS_PROXY ?=
 
+# Multi-Region Configuration
+REGION ?= region1
+CRC_REGION1_INSTANCE_NAME ?= crc
+CRC_REGION2_INSTANCE_NAME ?= crc2
+CRC_REGION1_HOME ?= ${HOME}/.crc-region1
+CRC_REGION2_HOME ?= ${HOME}/.crc-region2
+
+# Select CRC configuration based on REGION
+ifeq ($(REGION), region1)
+    CRC_INSTANCE_NAME := $(CRC_REGION1_INSTANCE_NAME)
+    CRC_HOME := $(CRC_REGION1_HOME)
+else ifeq ($(REGION), region2)
+    CRC_INSTANCE_NAME := $(CRC_REGION2_INSTANCE_NAME)
+    CRC_HOME := $(CRC_REGION2_HOME)
+else
+    CRC_INSTANCE_NAME := crc
+    CRC_HOME := ${HOME}/.crc
+endif
+
 OCP_NETWORK_NAME ?=crc
 NETWORK_ISOLATION_USE_DEFAULT_NETWORK ?= true
 
@@ -214,6 +233,8 @@ nfs_cleanup: ## removes /etc/exports.d/osp.exports, reloads nfs exports and dele
 
 ##@ CRC
 .PHONY: crc
+crc: export CRC_HOME
+crc: export CRC_INSTANCE_NAME
 crc: ## Deploys CRC using CRC_URL to download and install CRC, KUBEADMIN_PWD as the password which defaults to 12345678 and PULL_SECRET to specify the file containing the pull secret, defaults to ${PWD}/pull-secret.txt. To change the default memory and/or cpus for the VM use `CPUS=X MEMORY=Y DISK=Z make crc`.
 	bash scripts/crc-setup.sh ${CRC_URL} ${KUBEADMIN_PWD} ${PULL_SECRET}
 
