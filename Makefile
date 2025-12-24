@@ -2957,16 +2957,39 @@ set_slower_etcd_profile:  ## that is a helper for the CI jobs, where OpenShift A
 
 ##@ Multi-Region Deployment
 
+.PHONY: sno_region1
+sno_region1: ## Deploy SNO for Region 1
+	$(MAKE) -C devsetup sno_region1
+
+.PHONY: sno_region2
+sno_region2: ## Deploy SNO for Region 2
+	$(MAKE) -C devsetup sno_region2
+
+.PHONY: sno_all
+sno_all: sno_region1 sno_region2 ## Deploy SNO for both regions
+
+.PHONY: sno_cleanup_region1
+sno_cleanup_region1: ## Cleanup SNO for Region 1
+	$(MAKE) -C devsetup sno_cleanup_region1
+
+.PHONY: sno_cleanup_region2
+sno_cleanup_region2: ## Cleanup SNO for Region 2
+	$(MAKE) -C devsetup sno_cleanup_region2
+
+.PHONY: sno_cleanup_all
+sno_cleanup_all: sno_cleanup_region1 sno_cleanup_region2 ## Cleanup both SNO instances
+
+# Legacy CRC + Microshift targets (deprecated - use SNO instead)
 .PHONY: crc_region1
-crc_region1: ## Deploy CRC for Region 1
+crc_region1: ## Deploy CRC for Region 1 (deprecated)
 	$(MAKE) -C devsetup crc
 
 .PHONY: microshift_region2
-microshift_region2: ## Deploy Microshift for Region 2
+microshift_region2: ## Deploy Microshift for Region 2 (deprecated)
 	$(MAKE) -C devsetup microshift
 
 .PHONY: crc_all
-crc_all: crc_region1 microshift_region2 ## Deploy CRC (Region 1) and Microshift (Region 2)
+crc_all: crc_region1 microshift_region2 ## Deploy CRC (Region 1) and Microshift (Region 2) (deprecated)
 
 .PHONY: openstack_region1
 openstack_region1: ## Deploy OpenStack in Region 1

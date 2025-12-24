@@ -12,6 +12,20 @@ CRC_HTTPS_PROXY ?=
 REGION ?= region1
 MICROSHIFT_HOME ?= ${HOME}/.microshift
 
+# SNO Multi-Region Configuration
+SNO_REGION1_WORK_DIR ?= ${HOME}/.sno-region1
+SNO_REGION2_WORK_DIR ?= ${HOME}/.sno-region2
+SNO_REGION1_INSTANCE_NAME ?= sno-region1
+SNO_REGION2_INSTANCE_NAME ?= sno-region2
+SNO_REGION1_NETWORK ?= sno-region1-net
+SNO_REGION2_NETWORK ?= sno-region2-net
+SNO_REGION1_HOST_IP ?= 192.168.122.10
+SNO_REGION2_HOST_IP ?= 192.168.123.10
+SNO_OCP_VERSION ?= latest-4.17
+SNO_MEMORY ?= 32768
+SNO_VCPUS ?= 12
+SNO_DISK_SIZE ?= 150
+
 OCP_NETWORK_NAME ?=crc
 NETWORK_ISOLATION_USE_DEFAULT_NETWORK ?= true
 
@@ -256,6 +270,51 @@ microshift_cleanup: ## Cleanup Microshift installation
 	sudo firewall-cmd --permanent --zone=trusted --remove-source=10.43.0.0/16 || true
 	sudo firewall-cmd --reload || true
 	rm -rf ${MICROSHIFT_HOME}
+
+##@ SNO (Single Node OpenShift)
+.PHONY: sno_region1
+sno_region1: export WORK_DIR=${SNO_REGION1_WORK_DIR}
+sno_region1: export SNO_INSTANCE_NAME=${SNO_REGION1_INSTANCE_NAME}
+sno_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
+sno_region1: export SNO_HOST_IP=${SNO_REGION1_HOST_IP}
+sno_region1: export SNO_MACHINE_NETWORK=192.168.122.0/24
+sno_region1: export OCP_VERSION=${SNO_OCP_VERSION}
+sno_region1: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
+sno_region1: export PULL_SECRET=${PULL_SECRET}
+sno_region1: export MEMORY=${SNO_MEMORY}
+sno_region1: export VCPUS=${SNO_VCPUS}
+sno_region1: export DISK_SIZE=${SNO_DISK_SIZE}
+sno_region1: ## Deploy SNO for Region 1
+	bash scripts/ipv6-nat64/sno.sh --create
+
+.PHONY: sno_region2
+sno_region2: export WORK_DIR=${SNO_REGION2_WORK_DIR}
+sno_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
+sno_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
+sno_region2: export SNO_HOST_IP=${SNO_REGION2_HOST_IP}
+sno_region2: export SNO_MACHINE_NETWORK=192.168.123.0/24
+sno_region2: export OCP_VERSION=${SNO_OCP_VERSION}
+sno_region2: export OCP_ADMIN_PASSWD=${KUBEADMIN_PWD}
+sno_region2: export PULL_SECRET=${PULL_SECRET}
+sno_region2: export MEMORY=${SNO_MEMORY}
+sno_region2: export VCPUS=${SNO_VCPUS}
+sno_region2: export DISK_SIZE=${SNO_DISK_SIZE}
+sno_region2: ## Deploy SNO for Region 2
+	bash scripts/ipv6-nat64/sno.sh --create
+
+.PHONY: sno_cleanup_region1
+sno_cleanup_region1: export WORK_DIR=${SNO_REGION1_WORK_DIR}
+sno_cleanup_region1: export SNO_INSTANCE_NAME=${SNO_REGION1_INSTANCE_NAME}
+sno_cleanup_region1: export NETWORK_NAME=${SNO_REGION1_NETWORK}
+sno_cleanup_region1: ## Cleanup SNO for Region 1
+	bash scripts/ipv6-nat64/sno.sh --cleanup
+
+.PHONY: sno_cleanup_region2
+sno_cleanup_region2: export WORK_DIR=${SNO_REGION2_WORK_DIR}
+sno_cleanup_region2: export SNO_INSTANCE_NAME=${SNO_REGION2_INSTANCE_NAME}
+sno_cleanup_region2: export NETWORK_NAME=${SNO_REGION2_NETWORK}
+sno_cleanup_region2: ## Cleanup SNO for Region 2
+	bash scripts/ipv6-nat64/sno.sh --cleanup
 
 ##@ Network Interfaces
 .PHONY: crc_attach_default_interface

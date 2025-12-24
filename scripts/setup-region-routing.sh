@@ -15,13 +15,11 @@
 # under the License.
 set -ex
 
-# Setup L3 routing between two CRC regions
+# Setup L3 routing between Region 1 (CRC) and Region 2 (Microshift/host)
 
 # Default values
 REGION1_CTLPLANE_NETWORK=${REGION1_CTLPLANE_NETWORK:-"192.168.122.0/24"}
-REGION2_CTLPLANE_NETWORK=${REGION2_CTLPLANE_NETWORK:-"192.168.123.0/24"}
-CRC1_INSTANCE=${CRC_REGION1_INSTANCE_NAME:-"crc"}
-CRC2_INSTANCE=${CRC_REGION2_INSTANCE_NAME:-"crc2"}
+CRC_INSTANCE=${CRC_INSTANCE_NAME:-"crc"}
 
 # Region 1 networks
 REGION1_INTERNALAPI_NETWORK=${REGION1_NETWORK_INTERNALAPI_ADDRESS_PREFIX:-"172.17.0"}.0/16
@@ -40,8 +38,8 @@ REGION1_GATEWAY="192.168.122.1"
 REGION2_GATEWAY="192.168.123.1"
 
 echo "Setting up L3 routing between regions..."
-echo "Region 1: ${REGION1_CTLPLANE_NETWORK} (instance: ${CRC1_INSTANCE})"
-echo "Region 2: ${REGION2_CTLPLANE_NETWORK} (instance: ${CRC2_INSTANCE})"
+echo "Region 1: ${REGION1_CTLPLANE_NETWORK} (CRC VM: ${CRC_INSTANCE})"
+echo "Region 2: Microshift networks (running on host)"
 
 # Enable IP forwarding on host
 echo "Enabling IP forwarding on host..."
@@ -56,81 +54,53 @@ if ! grep -q "net.ipv6.conf.all.forwarding=1" /etc/sysctl.conf 2>/dev/null; then
     echo "net.ipv6.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
 fi
 
-# Configure iptables FORWARD rules to allow inter-region traffic
-echo "Configuring iptables FORWARD rules..."
+# Configure firewall rules to allow inter-region traffic
+echo "Configuring firewall rules..."
 
-# Allow traffic from Region 1 to Region 2
-sudo iptables -C FORWARD -s ${REGION1_CTLPLANE_NETWORK} -d ${REGION2_CTLPLANE_NETWORK} -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -s ${REGION1_CTLPLANE_NETWORK} -d ${REGION2_CTLPLANE_NETWORK} -j ACCEPT
-
-# Allow traffic from Region 2 to Region 1
-sudo iptables -C FORWARD -s ${REGION2_CTLPLANE_NETWORK} -d ${REGION1_CTLPLANE_NETWORK} -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -s ${REGION2_CTLPLANE_NETWORK} -d ${REGION1_CTLPLANE_NETWORK} -j ACCEPT
-
-# Allow traffic between isolated networks
-for NET1 in ${REGION1_INTERNALAPI_NETWORK} ${REGION1_STORAGE_NETWORK} ${REGION1_TENANT_NETWORK} ${REGION1_STORAGEMGMT_NETWORK}; do
-    for NET2 in ${REGION2_INTERNALAPI_NETWORK} ${REGION2_STORAGE_NETWORK} ${REGION2_TENANT_NETWORK} ${REGION2_STORAGEMGMT_NETWORK}; do
-        sudo iptables -C FORWARD -s ${NET1} -d ${NET2} -j ACCEPT 2>/dev/null || \
-            sudo iptables -A FORWARD -s ${NET1} -d ${NET2} -j ACCEPT
-        sudo iptables -C FORWARD -s ${NET2} -d ${NET1} -j ACCEPT 2>/dev/null || \
-            sudo iptables -A FORWARD -s ${NET2} -d ${NET1} -j ACCEPT
-    done
+# Use firewalld direct rules for persistent configuration
+# Allow forwarding for Region 1 networks
+for NETWORK in ${REGION1_INTERNALAPI_NETWORK} ${REGION1_STORAGE_NETWORK} ${REGION1_TENANT_NETWORK} ${REGION1_STORAGEMGMT_NETWORK}; do
+    sudo firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -s ${NETWORK} -j ACCEPT || true
+    sudo firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -d ${NETWORK} -j ACCEPT || true
 done
 
-# Add static routes on CRC instances
-echo "Adding static routes on CRC instances..."
+# Allow forwarding for Region 2 networks
+for NETWORK in ${REGION2_INTERNALAPI_NETWORK} ${REGION2_STORAGE_NETWORK} ${REGION2_TENANT_NETWORK} ${REGION2_STORAGEMGMT_NETWORK}; do
+    sudo firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -s ${NETWORK} -j ACCEPT || true
+    sudo firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -d ${NETWORK} -j ACCEPT || true
+done
 
-# Check if we can SSH to CRC instances
-if ! virsh list --name | grep -q "^${CRC1_INSTANCE}$"; then
-    echo "Warning: CRC instance '${CRC1_INSTANCE}' is not running. Skipping route configuration for Region 1."
+sudo firewall-cmd --reload
+
+# Add static routes on CRC VM (Region 1)
+echo "Adding static routes on CRC VM..."
+
+# Check if CRC VM is running
+if ! virsh list --name | grep -q "^${CRC_INSTANCE}$"; then
+    echo "Warning: CRC instance '${CRC_INSTANCE}' is not running. Skipping route configuration."
 else
-    # Get Region 1 CRC IP
-    CRC1_IP=$(virsh domifaddr ${CRC1_INSTANCE} | grep -oP '192\.168\.122\.\d+' | head -1)
-    if [ -n "${CRC1_IP}" ]; then
-        echo "Configuring routes on Region 1 CRC (${CRC1_IP})..."
+    # Get CRC VM IP
+    CRC_IP=$(virsh domifaddr ${CRC_INSTANCE} | grep -oP '192\.168\.122\.\d+' | head -1)
+    if [ -n "${CRC_IP}" ]; then
+        echo "Configuring routes on CRC VM (${CRC_IP})..."
 
         # Add routes to Region 2 networks via host gateway
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC1_IP} \
-            "sudo ip route add ${REGION2_CTLPLANE_NETWORK} via ${REGION1_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC1_IP} \
+        # These routes allow CRC to reach Microshift networks on the host
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC_IP} \
             "sudo ip route add ${REGION2_INTERNALAPI_NETWORK} via ${REGION1_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC1_IP} \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC_IP} \
             "sudo ip route add ${REGION2_STORAGE_NETWORK} via ${REGION1_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC1_IP} \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC_IP} \
             "sudo ip route add ${REGION2_TENANT_NETWORK} via ${REGION1_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC1_IP} \
+        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC_IP} \
             "sudo ip route add ${REGION2_STORAGEMGMT_NETWORK} via ${REGION1_GATEWAY} || true"
     else
-        echo "Warning: Could not determine IP address for ${CRC1_INSTANCE}"
+        echo "Warning: Could not determine IP address for ${CRC_INSTANCE}"
     fi
 fi
 
-if ! virsh list --name | grep -q "^${CRC2_INSTANCE}$"; then
-    echo "Warning: CRC instance '${CRC2_INSTANCE}' is not running. Skipping route configuration for Region 2."
-else
-    # Get Region 2 CRC IP
-    CRC2_IP=$(virsh domifaddr ${CRC2_INSTANCE} | grep -oP '192\.168\.123\.\d+' | head -1)
-    if [ -n "${CRC2_IP}" ]; then
-        echo "Configuring routes on Region 2 CRC (${CRC2_IP})..."
-
-        # Add routes to Region 1 networks via host gateway
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC2_IP} \
-            "sudo ip route add ${REGION1_CTLPLANE_NETWORK} via ${REGION2_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC2_IP} \
-            "sudo ip route add ${REGION1_INTERNALAPI_NETWORK} via ${REGION2_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC2_IP} \
-            "sudo ip route add ${REGION1_STORAGE_NETWORK} via ${REGION2_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC2_IP} \
-            "sudo ip route add ${REGION1_TENANT_NETWORK} via ${REGION2_GATEWAY} || true"
-        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null core@${CRC2_IP} \
-            "sudo ip route add ${REGION1_STORAGEMGMT_NETWORK} via ${REGION2_GATEWAY} || true"
-    else
-        echo "Warning: Could not determine IP address for ${CRC2_INSTANCE}"
-    fi
-fi
-
-echo "Region routing setup complete!"
 echo ""
-echo "To test connectivity:"
-echo "  - From Region 1: ping ${CRC2_IP}"
-echo "  - From Region 2: ping ${CRC1_IP}"
+echo "=== Region routing setup complete! ==="
+echo ""
+echo "Note: Region 2 (Microshift) runs on the host and has direct access to all networks."
+echo "Region 1 (CRC VM) has been configured with routes to reach Region 2 networks."

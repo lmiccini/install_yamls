@@ -1,11 +1,11 @@
 # Multi-Region OpenStack Deployment Guide
 
-This guide describes how to deploy a multi-region OpenStack setup with CRC (Region 1) and Microshift (Region 2) on a single host.
+This guide describes how to deploy a multi-region OpenStack setup with two SNO (Single Node OpenShift) instances on a single host.
 
 ## Architecture
 
-- **Region 1**: CRC (OpenShift) @ 192.168.122.x, networks 172.17-20.x
-- **Region 2**: Microshift (lightweight OpenShift) @ host, networks 172.27-30.x
+- **Region 1**: SNO @ 192.168.122.x, networks 172.17-20.x
+- **Region 2**: SNO @ 192.168.123.x, networks 172.27-30.x
 - **Networking**: L3 routed connectivity between regions
 - **Shared Keystone**: Region 2 services use Region 1's keystone for multi-region identity
 
@@ -13,35 +13,35 @@ This guide describes how to deploy a multi-region OpenStack setup with CRC (Regi
 
 1. Pull secret file (download from https://console.redhat.com/openshift/install/pull-secret)
 2. **RHEL 9, CentOS Stream 9, or Fedora host**
-3. Sufficient resources (16GB+ RAM, 100GB+ disk)
+3. Sufficient resources (**64GB+ RAM recommended**, 300GB+ disk for two SNO instances)
 4. sudo access
-5. **Microshift installation**: Script will automatically use COPR repository (works on all supported systems)
+5. SSH public key at `~/.ssh/id_rsa.pub`
 
 ## Quick Start
 
 ### 1. Deploy Both Regions
 
 ```bash
-# Deploy CRC for Region 1 and Microshift for Region 2
-make crc_all
+# Deploy SNO for both regions (this takes 30-45 minutes)
+make sno_all
 
 # This runs:
-# - make crc_region1  # Deploys CRC
-# - make microshift_region2  # Deploys Microshift
+# - make sno_region1  # Deploys SNO for Region 1
+# - make sno_region2  # Deploys SNO for Region 2
 ```
 
 ### 2. Access Each Region
 
-**Region 1 (CRC):**
+**Region 1 (SNO):**
 ```bash
-export KUBECONFIG=~/.crc/machines/crc/kubeconfig
-oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
+export KUBECONFIG=~/.sno-region1/ocp/auth/kubeconfig
+oc login -u kubeadmin -p 12345678 https://api.sno-region1.example.com:6443
 ```
 
-**Region 2 (Microshift):**
+**Region 2 (SNO):**
 ```bash
-export KUBECONFIG=~/.microshift/kubeconfig
-oc login -u kubeadmin https://api.microshift.testing:6443
+export KUBECONFIG=~/.sno-region2/ocp/auth/kubeconfig
+oc login -u kubeadmin -p 12345678 https://api.sno-region2.example.com:6443
 ```
 
 ### 3. Setup Networking (Optional)
@@ -123,24 +123,25 @@ make edpm_deploy_region2
 ### Cleanup
 
 ```bash
-# Cleanup Microshift (Region 2)
-make -C devsetup microshift_cleanup
+# Cleanup both SNO instances
+make sno_cleanup_all
 
-# Cleanup CRC (Region 1)
-make -C devsetup crc_cleanup
+# Or cleanup individually
+make sno_cleanup_region1
+make sno_cleanup_region2
 ```
 
 ## Network Configuration
 
-### Region 1 (CRC)
+### Region 1 (SNO)
 - Control Plane: 192.168.122.0/24
 - InternalAPI: 172.17.0.x
 - Storage: 172.18.0.x
 - Tenant: 172.19.0.x
 - StorageMgmt: 172.20.0.x
 
-### Region 2 (Microshift)
-- Control Plane: 192.168.123.0/24 (if using isolated network)
+### Region 2 (SNO)
+- Control Plane: 192.168.123.0/24
 - InternalAPI: 172.27.0.x
 - Storage: 172.28.0.x
 - Tenant: 172.29.0.x
@@ -171,102 +172,45 @@ make -C devsetup edpm_compute
 
 ## Troubleshooting
 
-### Microshift packages not available
+### SNO deployment taking too long
 
-**Error:**
-```
-No match for argument: microshift
-No match for argument: microshift-networking
-```
-
-**Solution:**
-
-The script automatically uses COPR repository which works on RHEL 9, CentOS Stream 9, and Fedora. This error usually means:
-
-1. **Network connectivity issue** - Check internet connection
-2. **COPR plugin missing** - Script will install it automatically
-
-The installation flow:
-- If RHEL is registered → Try Red Hat repos first, fallback to COPR
-- If not registered → Use COPR repository + Kubernetes repos for CRI-O
-
-To manually enable COPR and install:
-```bash
-# Install COPR plugin
-sudo dnf install -y 'dnf-command(copr)'
-
-# Enable Microshift COPR
-sudo dnf copr enable -y @redhat-et/microshift
-
-# Add Kubernetes repository (provides cri-tools)
-cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
-[kubernetes]
-name=Kubernetes
-baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
-EOF
-
-# Add CRI-O repository (provides cri-o)
-cat <<EOF | sudo tee /etc/yum.repos.d/cri-o.repo
-[cri-o]
-name=CRI-O
-baseurl=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.28/rpm/
-enabled=1
-gpgcheck=1
-gpgkey=https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.28/rpm/repodata/repomd.xml.key
-EOF
-
-# Install CRI-O and cri-tools
-sudo dnf install -y cri-o cri-tools
-
-# Install Microshift
-sudo dnf install -y microshift microshift-selinux
-```
-
-**Note**:
-- The COPR repository provides `microshift` and `microshift-selinux` packages
-- The `microshift-networking` package is only available in official Red Hat repositories (networking functionality is included in the main COPR package)
-- Container runtime dependencies (`cri-o` and `cri-tools`) are installed from Kubernetes repositories when using COPR on unregistered systems
-
-**Alternative Option: Use K3s for Region 2**
-
-If COPR is not accessible, you can use K3s as a lightweight Kubernetes alternative:
+SNO installation typically takes 30-45 minutes. If it's taking longer:
 
 ```bash
-# Install K3s
-curl -sfL https://get.k3s.io | sh -
+# Check VM status
+virsh list --all
 
-# Get kubeconfig
-sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config-k3s
-sudo chown $(id -u):$(id -g) ~/.kube/config-k3s
+# Check SNO bootstrap progress
+tail -f ~/.sno-region1/.openshift_install.log
 
-# Use it
-export KUBECONFIG=~/.kube/config-k3s
-kubectl get nodes
+# Check VM console
+virsh console sno-region1
 ```
 
-### Microshift not starting
+### SNO deployment failed
+
 ```bash
-# Check service status
-sudo systemctl status microshift
+# Check the installation log
+cat ~/.sno-region1/.openshift_install.log
 
-# Check logs
-sudo journalctl -u microshift -f
-
-# Verify kubeconfig exists
-ls -la ~/.microshift/kubeconfig
+# Common issues:
+# 1. Insufficient resources (need 32GB+ RAM per SNO)
+# 2. Network connectivity to pull container images
+# 3. Pull secret expired or invalid
 ```
 
-### Cannot access Microshift API
-```bash
-# Verify Microshift is running
-sudo systemctl status microshift
+### Cannot access SNO API
 
-# Check for kubeconfig
-export KUBECONFIG=~/.microshift/kubeconfig
+```bash
+# Verify SNO VM is running
+virsh list | grep sno-region
+
+# Check if API is responsive
+export KUBECONFIG=~/.sno-region1/ocp/auth/kubeconfig
 oc get nodes
+
+# Get cluster status
+oc get co  # Check cluster operators
 ```
 
 ### Region 2 services not using Region 1 keystone
@@ -278,25 +222,25 @@ oc get openstackcontrolplane -n openstack-region2 -o yaml | grep keystone
 make configure_multi_region_keystone
 ```
 
-## Key Differences from CRC-CRC Multi-Region
+## Key Features
 
-1. **Simpler Setup**: No VM cloning, no complex networking
-2. **Resource Efficient**: Microshift uses less memory than full CRC
-3. **Independent Clusters**: Each region is truly independent
-4. **Native DNS**: Microshift has its own domain (microshift.testing)
-5. **Direct Access**: Microshift runs on host, easier debugging
+1. **Full OpenShift**: Both regions run complete OpenShift with all operators
+2. **Independent Clusters**: Each SNO is fully independent with its own API, networking, and storage
+3. **Production-like**: SNO is closer to production OpenShift than CRC
+4. **Flexible Networking**: Each SNO on separate libvirt network with L3 routing
+5. **Persistent**: SNO installations persist across reboots unlike CRC
 
 ## Files Modified
 
-- `Makefile`: Multi-region targets and network configuration
-- `devsetup/Makefile`: Added Microshift targets
-- `devsetup/scripts/microshift-setup.sh`: Microshift installation script
-- `devsetup/scripts/crc-setup.sh`: Removed CRC multi-instance code
+- `Makefile`: Multi-region SNO targets and network configuration
+- `devsetup/Makefile`: Added SNO region-specific targets
+- `scripts/setup-region-routing.sh`: Updated for CRC-to-Microshift routing (will be updated for SNO-to-SNO)
 - `scripts/gen-edpm-kustomize.sh`: Region suffix for EDPM nodes
 - `devsetup/scripts/gen-edpm-node-common.sh`: Region suffix for VM names
 
-## Files Removed (Obsolete CRC Cloning Approach)
+## Implementation Notes
 
-- `scripts/clone-crc-vm.sh`: VM cloning (not needed)
-- `scripts/cleanup-crc-clone.sh`: Cloning cleanup (not needed)
-- `scripts/setup-crc-multi-dns.sh`: Multi-CRC DNS (not needed)
+- Uses existing `devsetup/scripts/ipv6-nat64/sno.sh` script
+- Each SNO gets its own work directory (`~/.sno-region1`, `~/.sno-region2`)
+- Separate libvirt networks for each region
+- L3 routing configured on host for inter-region communication
