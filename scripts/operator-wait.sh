@@ -31,10 +31,6 @@ if [ -z "$OPERATOR_NAME" ]; then
     echo "Please set OPERATOR_NAME"; exit 1
 fi
 
-if [ "$OPERATOR_NAME" = "rabbitmq" ]; then
-    OPERATOR_NAME="rabbitmq-cluster"
-fi
-
 pushd $SCRIPTPATH
 timeout ${TIMEOUT} bash -c 'until [ "$(bash ./get-operator-status.sh)" == "Succeeded" ]; do sleep 5; done'
 rc=$?

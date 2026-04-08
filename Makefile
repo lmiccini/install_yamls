@@ -285,12 +285,8 @@ CINDER_KUTTL_DIR       ?= ${OPERATOR_BASE_DIR}/cinder-operator/test/kuttl/tests
 CINDER_KUTTL_NAMESPACE ?= cinder-kuttl-tests
 
 # RabbitMQ
-RABBITMQ_IMG            ?= quay.io/openstack-k8s-operators/rabbitmq-cluster-operator-index:${OPENSTACK_K8S_TAG}
-RABBITMQ_REPO           ?= https://github.com/openstack-k8s-operators/rabbitmq-cluster-operator.git
-RABBITMQ_BRANCH         ?= patches
-RABBITMQ_COMMIT_HASH    ?=
-RABBITMQ                ?= docs/examples/default-security-context/rabbitmq.yaml
-RABBITMQ_CR             ?= ${OPERATOR_BASE_DIR}/rabbitmq-operator/${RABBITMQ}
+RABBITMQ                ?= config/samples/rabbitmq_v1beta1_rabbitmq.yaml
+RABBITMQ_CR             ?= ${OPERATOR_BASE_DIR}/infra-operator/${RABBITMQ}
 RABBITMQ_DEPL_IMG       ?= unused
 
 # Ironic
@@ -605,7 +601,7 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: cleanup
-cleanup: heat_cleanup horizon_cleanup nova_cleanup octavia_cleanup designate_cleanup neutron_cleanup ovn_cleanup ironic_cleanup cinder_cleanup glance_cleanup placement_cleanup swift_cleanup barbican_cleanup keystone_cleanup mariadb_cleanup telemetry_cleanup rabbitmq_cleanup infra_cleanup manila_cleanup metallb_cleanup ## Delete all operators
+cleanup: heat_cleanup horizon_cleanup nova_cleanup octavia_cleanup designate_cleanup neutron_cleanup ovn_cleanup ironic_cleanup cinder_cleanup glance_cleanup placement_cleanup swift_cleanup barbican_cleanup keystone_cleanup mariadb_cleanup telemetry_cleanup infra_cleanup manila_cleanup metallb_cleanup ## Delete all operators
 
 .PHONY: deploy_cleanup
 deploy_cleanup: manila_deploy_cleanup heat_deploy_cleanup horizon_deploy_cleanup nova_deploy_cleanup redis_deploy_cleanup octavia_deploy_cleanup designate_deploy_cleanup neutron_deploy_cleanup ovn_deploy_cleanup ironic_deploy_cleanup cinder_deploy_cleanup glance_deploy_cleanup placement_deploy_cleanup swift_deploy_cleanup barbican_deploy_cleanup keystone_deploy_cleanup redis_deploy_cleanup mariadb_deploy_cleanup telemetry_deploy_cleanup memcached_deploy_cleanup rabbitmq_deploy_cleanup ## Delete all OpenStack service objects
@@ -1579,49 +1575,32 @@ cinder_deploy_cleanup: namespace ## cleans up the service instance, Does not aff
 	oc rsh -t $(DBSERVICE_CONTAINER) mysql -u root --password=${PASSWORD} -e "flush tables; drop database if exists cinder;" || true
 
 ##@ RABBITMQ
-.PHONY: rabbitmq_prep
-rabbitmq_prep: export IMAGE=${RABBITMQ_IMG}
-rabbitmq_prep: ## creates the files to install the operator using olm
-	$(eval $(call vars,$@,rabbitmq-cluster))
-	bash scripts/gen-olm.sh
-
-.PHONY: rabbitmq
-rabbitmq: operator_namespace rabbitmq_prep ## installs the operator, also runs the prep step. Set RABBITMQ_IMG for custom image.
-	$(eval $(call vars,$@,rabbitmq-cluster))
-	oc apply -f ${OPERATOR_DIR}
-
-.PHONY: rabbitmq_cleanup
-rabbitmq_cleanup: ## deletes the operator, but does not cleanup the service resources
-	$(eval $(call vars,$@,rabbitmq-cluster))
-	bash scripts/operator-cleanup.sh
-	${CLEANUP_DIR_CMD} ${OPERATOR_DIR}
-
 .PHONY: rabbitmq_deploy_prep
-rabbitmq_deploy_prep: export KIND=RabbitmqCluster
+rabbitmq_deploy_prep: export KIND=RabbitMq
 rabbitmq_deploy_prep: export NAME=rabbitmq
 rabbitmq_deploy_prep: export IMAGE=${RABBITMQ_DEPL_IMG}
 rabbitmq_deploy_prep: export IMAGE_PATH=image
-rabbitmq_deploy_prep: export REPO=${RABBITMQ_REPO}
-rabbitmq_deploy_prep: export BRANCH=${RABBITMQ_BRANCH}
-rabbitmq_deploy_prep: export HASH=${RABBITMQ_COMMIT_HASH}
+rabbitmq_deploy_prep: export REPO=${INFRA_REPO}
+rabbitmq_deploy_prep: export BRANCH=${INFRA_BRANCH}
+rabbitmq_deploy_prep: export HASH=${INFRA_COMMIT_HASH}
 rabbitmq_deploy_prep: rabbitmq_deploy_cleanup ## prepares the CR to install the service based on the service sample file RABBITMQ
-	$(eval $(call vars,$@,rabbitmq))
+	$(eval $(call vars,$@,infra))
 	mkdir -p ${OPERATOR_BASE_DIR} ${OPERATOR_DIR} ${DEPLOY_DIR}
-	bash -c "CHECKOUT_FROM_OPENSTACK_REF=false scripts/clone-operator-repo.sh"
+	bash scripts/clone-operator-repo.sh
 	cp ${RABBITMQ_CR} ${DEPLOY_DIR}
 	bash scripts/gen-service-kustomize.sh
 
 .PHONY: rabbitmq_deploy
-rabbitmq_deploy: input rabbitmq_deploy_prep ## installs the service instance using kustomize. Runs prep step in advance. Set RABBITMQ_REPO and RABBITMQ_BRANCH to deploy from a custom repo.
-	$(eval $(call vars,$@,rabbitmq))
+rabbitmq_deploy: input rabbitmq_deploy_prep ## installs the service instance using kustomize. Runs prep step in advance. Set INFRA_REPO and INFRA_BRANCH to deploy from a custom repo.
+	$(eval $(call vars,$@,infra))
 	make wait
 	bash scripts/operator-deploy-resources.sh
 
 .PHONY: rabbitmq_deploy_cleanup
 rabbitmq_deploy_cleanup: namespace ## cleans up the service instance, Does not affect the operator.
-	$(eval $(call vars,$@,rabbitmq))
-	if oc get RabbitmqCluster; then oc delete --ignore-not-found=true RabbitmqCluster --all; fi
-	${CLEANUP_DIR_CMD} ${OPERATOR_BASE_DIR}/rabbitmq-operator ${DEPLOY_DIR}
+	$(eval $(call vars,$@,infra))
+	oc kustomize ${DEPLOY_DIR} | oc delete --ignore-not-found=true -f - || true
+	${CLEANUP_DIR_CMD} ${OPERATOR_BASE_DIR}/infra-operator ${DEPLOY_DIR}
 
 ##@ IRONIC
 .PHONY: ironic_prep
@@ -1826,10 +1805,10 @@ kuttl_db_prep: input deploy_cleanup mariadb mariadb_deploy infra memcached_deplo
 kuttl_db_cleanup: memcached_deploy_cleanup infra_cleanup mariadb_deploy_cleanup mariadb_cleanup input_cleanup
 
 .PHONY: kuttl_common_prep
-kuttl_common_prep: validate_marketplace metallb kuttl_db_prep rabbitmq rabbitmq_deploy keystone keystone_deploy ## installs common middleware services and Keystone
+kuttl_common_prep: validate_marketplace metallb kuttl_db_prep rabbitmq_deploy keystone keystone_deploy ## installs common middleware services and Keystone
 
 .PHONY: kuttl_common_cleanup
-kuttl_common_cleanup: keystone_cleanup rabbitmq_cleanup kuttl_db_cleanup metallb_cleanup
+kuttl_common_cleanup: keystone_cleanup kuttl_db_cleanup metallb_cleanup
 
 .PHONY: keystone_kuttl_run
 keystone_kuttl_run: ## runs kuttl tests for the keystone operator, assumes that everything needed for running the test was deployed beforehand.
@@ -1839,7 +1818,7 @@ keystone_kuttl_run: ## runs kuttl tests for the keystone operator, assumes that 
 keystone_kuttl: export NAMESPACE = ${KEYSTONE_KUTTL_NAMESPACE}
 # Set the value of $KEYSTONE_KUTTL_NAMESPACE if you want to run the keystone
 # kuttl tests in a namespace different than the default (keystone-kuttl-tests)
-keystone_kuttl: kuttl_db_prep rabbitmq rabbitmq_deploy keystone keystone_deploy_prep ## runs kuttl tests for the keystone operator. Installs keystone operator and cleans up previous deployments before running the tests, add cleanup after running the tests.
+keystone_kuttl: kuttl_db_prep rabbitmq_deploy keystone keystone_deploy_prep ## runs kuttl tests for the keystone operator. Installs keystone operator and cleans up previous deployments before running the tests, add cleanup after running the tests.
 	$(eval $(call vars,$@,keystone))
 	make wait
 	make keystone_kuttl_run
@@ -1847,7 +1826,6 @@ keystone_kuttl: kuttl_db_prep rabbitmq rabbitmq_deploy keystone keystone_deploy_
 	make keystone_cleanup
 	make kuttl_db_cleanup
 	make rabbitmq_deploy_cleanup
-	make rabbitmq_cleanup
 	bash scripts/restore-namespace.sh
 
 .PHONY: barbican_kuttl_run
@@ -1974,13 +1952,12 @@ infra_kuttl_run: ## runs kuttl tests for the infra operator, assumes that everyt
 infra_kuttl: export NAMESPACE = ${INFRA_KUTTL_NAMESPACE}
 # Set the value of $INFRA_KUTTL_NAMESPACE if you want to run the infra
 # kuttl tests in a namespace different than the default (infra-kuttl-tests)
-infra_kuttl: input deploy_cleanup rabbitmq rabbitmq_deploy infra memcached_deploy_prep ## runs kuttl tests for the infra operator. Installs infra operator and cleans up previous deployments before running the tests, add cleanup after running the tests.
+infra_kuttl: input deploy_cleanup infra rabbitmq_deploy memcached_deploy_prep ## runs kuttl tests for the infra operator. Installs infra operator and cleans up previous deployments before running the tests, add cleanup after running the tests.
 	$(eval $(call vars,$@,infra))
 	make wait
 	make infra_kuttl_run
 	make deploy_cleanup
 	make infra_cleanup
-	make rabbitmq_cleanup
 
 .PHONY: ironic_kuttl_run
 ironic_kuttl_run: ## runs kuttl tests for the ironic operator, assumes that everything needed for running the test was deployed beforehand.
