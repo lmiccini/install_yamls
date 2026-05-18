@@ -83,6 +83,9 @@ FAKE_COMPUTE_VMS ?= 1
 FAKE_COMPUTE_VCPUS ?= 4
 FAKE_COMPUTE_RAM ?= 8
 FAKE_COMPUTE_DISK_SIZE ?= 20
+CRC_POOL ?= ${HOME}/.crc/machines/crc
+CENTOS_9_STREAM_URL ?= https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
+EDPM_IMAGE_URL ?= ${CENTOS_9_STREAM_URL}
 RH_REGISTRY_USER ?= ""
 RH_REGISTRY_PWD ?= ""
 EDPM_CONFIGURE_HUGEPAGES ?= false
@@ -463,15 +466,30 @@ edpm_compute_cleanup: ## Delete EDPM compute VM
 		done \
 	fi
 
+.PHONY: edpm_fake_compute_base_image
+edpm_fake_compute_base_image: ## Create base image with podman pre-installed
+	$(eval $(call vars))
+	@if [ ! -f ${CRC_POOL}/fake-compute-base.qcow2 ]; then \
+		if [ ! -f ${CRC_POOL}/$$(basename ${EDPM_IMAGE_URL}) ]; then \
+			pushd ${CRC_POOL} && curl -L -k ${EDPM_IMAGE_URL} -o $$(basename ${EDPM_IMAGE_URL}) && popd; \
+		fi; \
+		cp ${CRC_POOL}/$$(basename ${EDPM_IMAGE_URL}) ${CRC_POOL}/fake-compute-base.qcow2; \
+		if [ ! -e /usr/bin/virt-customize ]; then \
+			sudo dnf -y install /usr/bin/virt-customize; \
+		fi; \
+		virt-customize -a ${CRC_POOL}/fake-compute-base.qcow2 --install podman --selinux-relabel; \
+	else \
+		echo "Base image ${CRC_POOL}/fake-compute-base.qcow2 already exists, skipping."; \
+	fi
+
 .PHONY: edpm_fake_compute
 edpm_fake_compute: export EDPM_SERVER_ROLE=fake-compute
 edpm_fake_compute: export EDPM_COMPUTE_VCPUS=${FAKE_COMPUTE_VCPUS}
 edpm_fake_compute: export EDPM_COMPUTE_RAM=${FAKE_COMPUTE_RAM}
 edpm_fake_compute: export EDPM_COMPUTE_DISK_SIZE=${FAKE_COMPUTE_DISK_SIZE}
 edpm_fake_compute: export EDPM_COMPUTE_NETWORK=${NETWORK_ISOLATION_NET_NAME}
-edpm_fake_compute: export VIRT_CUSTOMIZE_NETWORK=
-edpm_fake_compute: export VIRT_CUSTOMIZE_EXTRA=--install podman
-edpm_fake_compute: ## Create VMs for fake nova-compute
+edpm_fake_compute: export BASE_DISK_FILENAME=fake-compute-base.qcow2
+edpm_fake_compute: edpm_fake_compute_base_image ## Create VMs for fake nova-compute
 	$(eval $(call vars))
 	scripts/gen-ansibleee-ssh-key.sh
 	if [ ${FAKE_COMPUTE_VMS} -eq 1 ]; then \
@@ -484,7 +502,7 @@ edpm_fake_compute: ## Create VMs for fake nova-compute
 
 .PHONY: edpm_fake_compute_cleanup
 edpm_fake_compute_cleanup: export EDPM_SERVER_ROLE=fake-compute
-edpm_fake_compute_cleanup: ## Delete fake compute VMs
+edpm_fake_compute_cleanup: ## Delete fake compute VMs and base image
 	$(eval $(call vars))
 	if [ ${FAKE_COMPUTE_VMS} -eq 1 ]; then \
 		scripts/edpm-node-cleanup.sh 0; \
@@ -493,6 +511,7 @@ edpm_fake_compute_cleanup: ## Delete fake compute VMs
 			scripts/edpm-node-cleanup.sh $$INDEX; \
 		done \
 	fi
+	rm -f ${CRC_POOL}/fake-compute-base.qcow2
 
 .PHONY: edpm_networker
 edpm_networker: export EDPM_SERVER_ROLE=networker

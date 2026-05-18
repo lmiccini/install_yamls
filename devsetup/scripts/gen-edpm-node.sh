@@ -28,7 +28,6 @@ if [ ! -f ${DISK_FILEPATH} ]; then
     if [[ ! -e /usr/bin/virt-customize ]]; then
         sudo dnf -y install /usr/bin/virt-customize
     fi
-    VIRT_CUSTOMIZE_NETWORK=${VIRT_CUSTOMIZE_NETWORK-"--no-network"}
     virt-customize -a ${DISK_FILEPATH} \
         --root-password password:12345678 \
         --hostname ${EDPM_COMPUTE_NAME} \
@@ -38,8 +37,7 @@ if [ ! -f ${DISK_FILEPATH} ]; then
         --run-command "mkdir -p /root/.ssh; chmod 0700 /root/.ssh" \
         --run-command "ssh-keygen -f /root/.ssh/id_rsa -N ''" \
         --ssh-inject root:string:"$(cat $SSH_PUBLIC_KEY)" \
-        ${VIRT_CUSTOMIZE_EXTRA} \
-        ${VIRT_CUSTOMIZE_NETWORK} \
+        --no-network \
         --selinux-relabel || rm -f ${DISK_FILEPATH}
     if [ ! -f ${DISK_FILEPATH} ]; then
         exit 1
