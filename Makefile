@@ -1061,9 +1061,13 @@ edpm_fake_compute_deploy: ## Deploy fake nova-compute containers on VMs
 	scripts/gen-fake-computes.sh deploy $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM) $(FAKE_COMPUTE_NOVA_IMAGE)
 	$(MAKE) edpm_nova_discover_hosts
 
-.PHONY: edpm_fake_compute_cleanup
-edpm_fake_compute_cleanup: ## Stop fake nova-compute containers and cleanup nova services
+.PHONY: edpm_fake_compute_deploy_cleanup
+edpm_fake_compute_deploy_cleanup: ## Stop fake nova-compute containers and cleanup nova services
 	scripts/gen-fake-computes.sh cleanup $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM)
+
+.PHONY: edpm_fake_compute_cleanup
+edpm_fake_compute_cleanup: edpm_fake_compute_deploy_cleanup ## Full cleanup: stop containers, remove nova services, and destroy VMs
+	$(MAKE) -C devsetup edpm_fake_compute_cleanup FAKE_COMPUTE_VMS=$(FAKE_COMPUTE_VMS)
 
 .PHONY: openstack_crds
 openstack_crds: openstack_repo namespace ## installs all openstack CRDs. Useful for infrastructure dev
