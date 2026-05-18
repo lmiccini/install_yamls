@@ -78,6 +78,11 @@ MANILA_SERVICE_ENABLED ?= true
 HEAT_SERVICE_ENABLED ?= true
 
 EDPM_TOTAL_NODES ?= 1
+
+FAKE_COMPUTE_VMS ?= 1
+FAKE_COMPUTE_VCPUS ?= 4
+FAKE_COMPUTE_RAM ?= 8
+FAKE_COMPUTE_DISK_SIZE ?= 20
 RH_REGISTRY_USER ?= ""
 RH_REGISTRY_PWD ?= ""
 EDPM_CONFIGURE_HUGEPAGES ?= false
@@ -455,6 +460,35 @@ edpm_compute_cleanup: ## Delete EDPM compute VM
 	else \
 		for INDEX in $(shell seq 0 $$((${EDPM_TOTAL_NODES} -1))) ; do \
 			scripts/edpm-node-cleanup.sh $$INDEX ; \
+		done \
+	fi
+
+.PHONY: edpm_fake_compute
+edpm_fake_compute: export EDPM_SERVER_ROLE=fake-compute
+edpm_fake_compute: export EDPM_COMPUTE_VCPUS=${FAKE_COMPUTE_VCPUS}
+edpm_fake_compute: export EDPM_COMPUTE_RAM=${FAKE_COMPUTE_RAM}
+edpm_fake_compute: export EDPM_COMPUTE_DISK_SIZE=${FAKE_COMPUTE_DISK_SIZE}
+edpm_fake_compute: export EDPM_COMPUTE_NETWORK=${NETWORK_ISOLATION_NET_NAME}
+edpm_fake_compute: ## Create VMs for fake nova-compute
+	$(eval $(call vars))
+	scripts/gen-ansibleee-ssh-key.sh
+	if [ ${FAKE_COMPUTE_VMS} -eq 1 ]; then \
+		scripts/gen-edpm-node.sh 0; \
+	else \
+		for INDEX in $$(seq 0 $$((${FAKE_COMPUTE_VMS} -1))); do \
+			scripts/gen-edpm-node.sh $$INDEX; \
+		done \
+	fi
+
+.PHONY: edpm_fake_compute_cleanup
+edpm_fake_compute_cleanup: export EDPM_SERVER_ROLE=fake-compute
+edpm_fake_compute_cleanup: ## Delete fake compute VMs
+	$(eval $(call vars))
+	if [ ${FAKE_COMPUTE_VMS} -eq 1 ]; then \
+		scripts/edpm-node-cleanup.sh 0; \
+	else \
+		for INDEX in $$(seq 0 $$((${FAKE_COMPUTE_VMS} -1))); do \
+			scripts/edpm-node-cleanup.sh $$INDEX; \
 		done \
 	fi
 

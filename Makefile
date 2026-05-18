@@ -428,6 +428,11 @@ DATAPLANE_SERVER_ROLE                            ?= compute
 DATAPLANE_TLS_ENABLED                            ?= true
 DATAPLANE_NOVA_NFS_PATH                          ?=
 
+# Fake compute settings
+FAKE_COMPUTE_VMS                                 ?= 1
+FAKE_COMPUTES_PER_VM                             ?= 10
+FAKE_COMPUTE_NOVA_IMAGE                          ?= $(DATAPLANE_REGISTRY_URL)/$(DATAPLANE_CONTAINER_PREFIX)-nova-compute:$(DATAPLANE_CONTAINER_TAG)
+
 # Manila
 MANILA_IMG              ?= quay.io/openstack-k8s-operators/manila-operator-index:${OPENSTACK_K8S_TAG}
 MANILA_REPO             ?= https://github.com/openstack-k8s-operators/manila-operator.git
@@ -1048,6 +1053,15 @@ edpm_register_dns: dns_deploy_prep ## register edpm nodes in dns as dnsdata
 .PHONY: edpm_nova_discover_hosts
 edpm_nova_discover_hosts: ## trigger manual compute host discovery in nova
 	oc rsh nova-cell0-conductor-0 nova-manage cell_v2 discover_hosts --verbose
+
+.PHONY: edpm_fake_compute_deploy
+edpm_fake_compute_deploy: ## Deploy fake nova-compute containers on VMs
+	scripts/gen-fake-computes.sh deploy $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM) $(FAKE_COMPUTE_NOVA_IMAGE)
+	$(MAKE) edpm_nova_discover_hosts
+
+.PHONY: edpm_fake_compute_cleanup
+edpm_fake_compute_cleanup: ## Stop fake nova-compute containers and cleanup nova services
+	scripts/gen-fake-computes.sh cleanup $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM)
 
 .PHONY: openstack_crds
 openstack_crds: openstack_repo namespace ## installs all openstack CRDs. Useful for infrastructure dev
