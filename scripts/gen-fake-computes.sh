@@ -21,11 +21,18 @@ COMPUTES_PER_VM=${3:?Usage: $0 deploy|cleanup NUM_VMS COMPUTES_PER_VM [NOVA_IMAG
 NOVA_IMAGE=${4:-"quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"}
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-SSH_KEY="${SCRIPTPATH}/../devsetup/out/edpm/ansibleee-ssh-key-id_rsa"
+EDPM_OUTPUT_DIR=${EDPM_OUTPUT_DIR:-"${SCRIPTPATH}/../devsetup/out/edpm"}
+SSH_KEY=${SSH_KEY:-"${EDPM_OUTPUT_DIR}/ansibleee-ssh-key-id_rsa"}
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${SSH_KEY}"
 NAMESPACE=${NAMESPACE:-openstack}
 BASE_IP=${BASE_IP:-"192.168.122"}
 IP_OFFSET=${IP_OFFSET:-100}
+
+if [ ! -f "${SSH_KEY}" ]; then
+    echo "ERROR: SSH key not found at ${SSH_KEY}"
+    echo "Run 'make edpm_fake_compute' in devsetup/ first, or set SSH_KEY to the correct path."
+    exit 1
+fi
 
 MY_TMP_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$MY_TMP_DIR"' EXIT
