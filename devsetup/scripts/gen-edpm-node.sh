@@ -28,7 +28,7 @@ if [ ! -f ${DISK_FILEPATH} ]; then
     if [[ ! -e /usr/bin/virt-customize ]]; then
         sudo dnf -y install /usr/bin/virt-customize
     fi
-    VIRT_CUSTOMIZE_NETWORK=${VIRT_CUSTOMIZE_NETWORK:-"--no-network"}
+    VIRT_CUSTOMIZE_NETWORK=${VIRT_CUSTOMIZE_NETWORK-"--no-network"}
     virt-customize -a ${DISK_FILEPATH} \
         --root-password password:12345678 \
         --hostname ${EDPM_COMPUTE_NAME} \
