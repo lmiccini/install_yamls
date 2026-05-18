@@ -76,8 +76,8 @@ function extract_nova_config {
         exit 1
     fi
 
-    oc rsh -n ${NAMESPACE} ${conductor_pod} bash -c 'cat /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem' > "${config_dir}/tls-ca-bundle.pem"
-    if [ ! -s "${config_dir}/tls-ca-bundle.pem" ]; then
+    oc rsh -n ${NAMESPACE} ${conductor_pod} bash -c 'cat /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem' > "${config_dir}/openstack-ca.pem"
+    if [ ! -s "${config_dir}/openstack-ca.pem" ]; then
         echo "WARNING: Could not extract CA bundle from ${conductor_pod}"
     fi
 
@@ -170,12 +170,12 @@ function deploy {
 
         configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
-        ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/nova.conf.d /etc/pki/ca-trust/extracted/pem"
+        ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/nova.conf.d"
         scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/etc/nova/nova.conf
         ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf"
-        if [ -s "${MY_TMP_DIR}/tls-ca-bundle.pem" ]; then
-            scp ${SSH_OPTS} "${MY_TMP_DIR}/tls-ca-bundle.pem" root@${vm_ip}:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
-            ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+        if [ -s "${MY_TMP_DIR}/openstack-ca.pem" ]; then
+            scp ${SSH_OPTS} "${MY_TMP_DIR}/openstack-ca.pem" root@${vm_ip}:/etc/pki/ca-trust/source/anchors/openstack-ca.pem
+            ssh ${SSH_OPTS} root@${vm_ip} "update-ca-trust"
         fi
 
         for COMPUTE_INDEX in $(seq 0 $((COMPUTES_PER_VM - 1))); do
