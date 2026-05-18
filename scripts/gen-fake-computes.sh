@@ -126,7 +126,9 @@ function deploy {
 
         configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
-        scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/tmp/nova-base.conf
+        ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/nova.conf.d"
+        scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/etc/nova/nova.conf
+        ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf"
 
         for COMPUTE_INDEX in $(seq 0 $((COMPUTES_PER_VM - 1))); do
             local container_name="nova-fake-compute-${COMPUTE_INDEX}"
@@ -134,7 +136,8 @@ function deploy {
 
             generate_fake_compute_config "${VM_INDEX}" "${COMPUTE_INDEX}" "${MY_TMP_DIR}"
             scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-fake-${VM_INDEX}-${COMPUTE_INDEX}.conf" \
-                root@${vm_ip}:/tmp/nova-fake-${COMPUTE_INDEX}.conf
+                root@${vm_ip}:/etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf
+            ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf"
 
             ssh ${SSH_OPTS} root@${vm_ip} bash -s <<REMOTE_EOF
 set -ex
@@ -142,8 +145,8 @@ mkdir -p /var/lib/nova/fake-compute-${COMPUTE_INDEX}
 
 podman rm -f ${container_name} 2>/dev/null || true
 podman run -d --name ${container_name} \
-    -v /tmp/nova-base.conf:/etc/nova/nova.conf:ro \
-    -v /tmp/nova-fake-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro \
+    -v /etc/nova/nova.conf:/etc/nova/nova.conf:ro \
+    -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro \
     -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX} \
     ${NOVA_IMAGE} \
     nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/nova.conf.d/99-fake-override.conf
@@ -168,7 +171,7 @@ set -x
 for container in \$(podman ps -a --format '{{.Names}}' | grep '^nova-fake-compute-'); do
     podman rm -f \${container} 2>/dev/null || true
 done
-rm -f /tmp/nova-base.conf /tmp/nova-fake-*.conf
+rm -rf /etc/nova/nova.conf /etc/nova/nova.conf.d
 rm -rf /var/lib/nova/fake-compute-*
 REMOTE_EOF
         else
