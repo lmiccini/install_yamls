@@ -92,9 +92,10 @@ function generate_fake_compute_config {
 
     cat > "${config_dir}/nova-fake-${vm_index}-${compute_index}.conf" <<EOF
 [DEFAULT]
-compute_driver = fake.FakeDriver
+compute_driver = fake.FakeDriverWithoutFakeNodes
 host = ${host_name}
 state_path = /var/lib/nova/fake-compute-${compute_index}
+shutdown_timeout = 0
 
 [workarounds]
 disable_group_policy_check_upcall = true
@@ -107,6 +108,22 @@ connection = sqlite:///
 
 [api_database]
 connection = sqlite:///
+
+[compute]
+provider_config_location = /etc/nova/provider_config/
+EOF
+
+    mkdir -p "${config_dir}/provider_config"
+    cat > "${config_dir}/provider_config/fake-compute-${vm_index}-${compute_index}.yaml" <<EOF
+meta:
+  schema_version: '1.0'
+providers:
+  - identification:
+      uuid: \$COMPUTE_NODE
+    traits:
+      additional:
+        - COMPUTE_IMAGE_TYPE_QCOW2
+        - COMPUTE_IMAGE_TYPE_RAW
 EOF
 }
 
@@ -176,6 +193,11 @@ function deploy {
                 root@${vm_ip}:/etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf
             ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf"
 
+            ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}"
+            scp ${SSH_OPTS} "${MY_TMP_DIR}/provider_config/fake-compute-${VM_INDEX}-${COMPUTE_INDEX}.yaml" \
+                root@${vm_ip}:/etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}/provider_config.yaml
+            ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}/provider_config.yaml"
+
             ssh ${SSH_OPTS} root@${vm_ip} bash -s <<REMOTE_EOF
 set -ex
 mkdir -p /var/lib/nova/fake-compute-${COMPUTE_INDEX}
@@ -186,6 +208,7 @@ podman run -d --name ${container_name} \
     -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro,z \
     -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX}:z \
     -v /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:ro,z \
+    -v /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}:/etc/nova/provider_config:ro,z \
     ${NOVA_IMAGE} \
     nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/nova.conf.d/99-fake-override.conf
 REMOTE_EOF
@@ -209,7 +232,7 @@ set -x
 for container in \$(podman ps -a --format '{{.Names}}' | grep '^nova-fake-compute-'); do
     podman rm -f \${container} 2>/dev/null || true
 done
-rm -rf /etc/nova/nova.conf /etc/nova/nova.conf.d
+rm -rf /etc/nova/nova.conf /etc/nova/nova.conf.d /etc/nova/provider_config
 rm -rf /var/lib/nova/fake-compute-*
 REMOTE_EOF
         else
