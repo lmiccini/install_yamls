@@ -1055,6 +1055,8 @@ edpm_nova_discover_hosts: ## trigger manual compute host discovery in nova
 	oc rsh nova-cell0-conductor-0 nova-manage cell_v2 discover_hosts --verbose
 
 .PHONY: edpm_fake_compute_deploy
+edpm_fake_compute_deploy: export INTERNALAPI_PREFIX=${NETWORK_INTERNALAPI_ADDRESS_PREFIX}
+edpm_fake_compute_deploy: export INTERNALAPI_VLAN_ID=$(shell echo ${NETWORK_VLAN_START})
 edpm_fake_compute_deploy: ## Deploy fake nova-compute containers on VMs
 	scripts/gen-fake-computes.sh deploy $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM) $(FAKE_COMPUTE_NOVA_IMAGE)
 	$(MAKE) edpm_nova_discover_hosts

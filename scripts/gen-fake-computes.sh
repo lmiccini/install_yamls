@@ -28,6 +28,11 @@ NAMESPACE=${NAMESPACE:-openstack}
 BASE_IP=${BASE_IP:-"192.168.122"}
 IP_OFFSET=${IP_OFFSET:-100}
 
+INTERNALAPI_VLAN_ID=${INTERNALAPI_VLAN_ID:-20}
+INTERNALAPI_PREFIX=${INTERNALAPI_PREFIX:-"172.17.0"}
+INTERNALAPI_IP_OFFSET=${INTERNALAPI_IP_OFFSET:-100}
+INTERNALAPI_INTERFACE=${INTERNALAPI_INTERFACE:-"eth0"}
+
 if [ ! -f "${SSH_KEY}" ]; then
     echo "ERROR: SSH key not found at ${SSH_KEY}"
     echo "Run 'make edpm_fake_compute' in devsetup/ first, or set SSH_KEY to the correct path."
@@ -93,6 +98,25 @@ enabled = false
 EOF
 }
 
+function configure_vlan_interface {
+    local vm_ip=$1
+    local vm_index=$2
+    local internalapi_ip="${INTERNALAPI_PREFIX}.$((INTERNALAPI_IP_OFFSET + vm_index))"
+    local vlan_iface="${INTERNALAPI_INTERFACE}.${INTERNALAPI_VLAN_ID}"
+
+    echo "Configuring VLAN ${INTERNALAPI_VLAN_ID} interface on VM ${vm_index} (${vm_ip}) with IP ${internalapi_ip}..."
+    ssh ${SSH_OPTS} root@${vm_ip} bash -s <<REMOTE_EOF
+set -ex
+if ! ip link show ${vlan_iface} 2>/dev/null; then
+    ip link add link ${INTERNALAPI_INTERFACE} name ${vlan_iface} type vlan id ${INTERNALAPI_VLAN_ID}
+fi
+ip link set ${vlan_iface} up
+if ! ip addr show ${vlan_iface} | grep -q "${internalapi_ip}"; then
+    ip addr add ${internalapi_ip}/24 dev ${vlan_iface}
+fi
+REMOTE_EOF
+}
+
 function deploy {
     extract_nova_config "${MY_TMP_DIR}"
 
@@ -102,6 +126,8 @@ function deploy {
 
         echo "Ensuring podman is installed on VM ${VM_INDEX} (${vm_ip})..."
         ssh ${SSH_OPTS} root@${vm_ip} "command -v podman >/dev/null 2>&1 || dnf install -y podman"
+
+        configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
         scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/tmp/nova-base.conf
 
