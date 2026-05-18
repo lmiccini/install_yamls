@@ -1069,6 +1069,14 @@ edpm_fake_compute_deploy_cleanup: ## Stop fake nova-compute containers and clean
 edpm_fake_compute_cleanup: edpm_fake_compute_deploy_cleanup ## Full cleanup: stop containers, remove nova services, and destroy VMs
 	$(MAKE) -C devsetup edpm_fake_compute_cleanup FAKE_COMPUTE_VMS=$(FAKE_COMPUTE_VMS)
 
+.PHONY: instanceha_deploy
+instanceha_deploy: ## Deploy InstanceHA with noop fencing for fake computes
+	scripts/gen-instanceha.sh deploy $(FAKE_COMPUTE_VMS) $(FAKE_COMPUTES_PER_VM)
+
+.PHONY: instanceha_cleanup
+instanceha_cleanup: ## Remove InstanceHA CR and fencing secret
+	scripts/gen-instanceha.sh cleanup
+
 .PHONY: openstack_crds
 openstack_crds: openstack_repo namespace ## installs all openstack CRDs. Useful for infrastructure dev
 	OPENSTACK_BUNDLE_IMG=${OPENSTACK_BUNDLE_IMG} OUT=${OUT} OPENSTACK_CRDS_DIR=${OPENSTACK_CRDS_DIR} OPERATOR_BASE_DIR=${OPERATOR_BASE_DIR} bash scripts/openstack-crds.sh
