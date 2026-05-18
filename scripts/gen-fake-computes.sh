@@ -148,8 +148,8 @@ function deploy {
     ctlplane=$(oc get openstackcontrolplane -n ${NAMESPACE} -o name 2>/dev/null | head -1)
     if [ -n "${ctlplane}" ]; then
         echo "Disabling image type support check in Nova scheduler..."
-        oc patch -n ${NAMESPACE} ${ctlplane} --type merge -p '
-          {"spec":{"nova":{"template":{"customServiceConfig":"[scheduler]\nquery_placement_for_image_type_support=false\n"}}}}'
+        oc patch -n ${NAMESPACE} ${ctlplane} --type merge -p "
+          {\"spec\":{\"nova\":{\"template\":{\"customServiceConfig\":\"[scheduler]\nquery_placement_for_image_type_support=false\n\"}}}}"
     else
         echo "WARNING: Could not find OpenStackControlPlane CR, scheduler config not patched"
     fi
