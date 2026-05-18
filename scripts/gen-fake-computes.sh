@@ -98,6 +98,17 @@ enabled = false
 EOF
 }
 
+function configure_dns {
+    local vm_ip=$1
+    local dns_ip=$2
+
+    echo "Configuring DNS server ${dns_ip} on VM (${vm_ip})..."
+    ssh ${SSH_OPTS} root@${vm_ip} bash -s <<REMOTE_EOF
+set -ex
+nmcli device modify eth0 ipv4.dns "${dns_ip}"
+REMOTE_EOF
+}
+
 function configure_vlan_interface {
     local vm_ip=$1
     local vm_index=$2
@@ -120,9 +131,19 @@ REMOTE_EOF
 function deploy {
     extract_nova_config "${MY_TMP_DIR}"
 
+    local dnsmasq_ip
+    dnsmasq_ip=$(oc get svc -n ${NAMESPACE} dnsmasq-dns -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+    if [ -z "${dnsmasq_ip}" ]; then
+        echo "WARNING: Could not find dnsmasq-dns service LoadBalancer IP, VMs may not resolve .svc names"
+    fi
+
     for VM_INDEX in $(seq 0 $((NUM_VMS - 1))); do
         local vm_ip="${BASE_IP}.$((IP_OFFSET + VM_INDEX))"
         wait_for_ssh "${vm_ip}"
+
+        if [ -n "${dnsmasq_ip}" ]; then
+            configure_dns "${vm_ip}" "${dnsmasq_ip}"
+        fi
 
         configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
