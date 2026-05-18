@@ -75,6 +75,12 @@ function extract_nova_config {
         echo "ERROR: Failed to extract nova config from ${conductor_pod}"
         exit 1
     fi
+
+    oc rsh -n ${NAMESPACE} ${conductor_pod} bash -c 'cat /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem' > "${config_dir}/tls-ca-bundle.pem"
+    if [ ! -s "${config_dir}/tls-ca-bundle.pem" ]; then
+        echo "WARNING: Could not extract CA bundle from ${conductor_pod}"
+    fi
+
     echo "Nova config extracted from ${conductor_pod} to ${config_dir}/nova-base.conf"
 }
 
@@ -147,9 +153,13 @@ function deploy {
 
         configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
-        ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/nova.conf.d"
+        ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/nova.conf.d /etc/pki/ca-trust/extracted/pem"
         scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/etc/nova/nova.conf
         ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf"
+        if [ -s "${MY_TMP_DIR}/tls-ca-bundle.pem" ]; then
+            scp ${SSH_OPTS} "${MY_TMP_DIR}/tls-ca-bundle.pem" root@${vm_ip}:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+            ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+        fi
 
         for COMPUTE_INDEX in $(seq 0 $((COMPUTES_PER_VM - 1))); do
             local container_name="nova-fake-compute-${COMPUTE_INDEX}"
@@ -169,6 +179,7 @@ podman run -d --name ${container_name} \
     -v /etc/nova/nova.conf:/etc/nova/nova.conf:ro \
     -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro \
     -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX} \
+    -v /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:ro \
     ${NOVA_IMAGE} \
     nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/nova.conf.d/99-fake-override.conf
 REMOTE_EOF
