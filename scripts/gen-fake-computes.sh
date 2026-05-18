@@ -108,22 +108,6 @@ connection = sqlite:///
 
 [api_database]
 connection = sqlite:///
-
-[compute]
-provider_config_location = /etc/nova/provider_config/
-EOF
-
-    mkdir -p "${config_dir}/provider_config"
-    cat > "${config_dir}/provider_config/fake-compute-${vm_index}-${compute_index}.yaml" <<EOF
-meta:
-  schema_version: '1.0'
-providers:
-  - identification:
-      uuid: \$COMPUTE_NODE
-    traits:
-      additional:
-        - COMPUTE_IMAGE_TYPE_QCOW2
-        - COMPUTE_IMAGE_TYPE_RAW
 EOF
 }
 
@@ -160,6 +144,16 @@ REMOTE_EOF
 function deploy {
     extract_nova_config "${MY_TMP_DIR}"
 
+    local ctlplane
+    ctlplane=$(oc get openstackcontrolplane -n ${NAMESPACE} -o name 2>/dev/null | head -1)
+    if [ -n "${ctlplane}" ]; then
+        echo "Disabling image type support check in Nova scheduler..."
+        oc patch -n ${NAMESPACE} ${ctlplane} --type merge -p '
+          {"spec":{"nova":{"template":{"customServiceConfig":"[scheduler]\nquery_placement_for_image_type_support=false\n"}}}}'
+    else
+        echo "WARNING: Could not find OpenStackControlPlane CR, scheduler config not patched"
+    fi
+
     local dnsmasq_ip
     dnsmasq_ip=$(oc get svc -n ${NAMESPACE} dnsmasq-dns -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
     if [ -z "${dnsmasq_ip}" ]; then
@@ -193,11 +187,6 @@ function deploy {
                 root@${vm_ip}:/etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf
             ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf"
 
-            ssh ${SSH_OPTS} root@${vm_ip} "mkdir -p /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}"
-            scp ${SSH_OPTS} "${MY_TMP_DIR}/provider_config/fake-compute-${VM_INDEX}-${COMPUTE_INDEX}.yaml" \
-                root@${vm_ip}:/etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}/provider_config.yaml
-            ssh ${SSH_OPTS} root@${vm_ip} "chmod 644 /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}/provider_config.yaml"
-
             ssh ${SSH_OPTS} root@${vm_ip} bash -s <<REMOTE_EOF
 set -ex
 mkdir -p /var/lib/nova/fake-compute-${COMPUTE_INDEX}
@@ -208,7 +197,6 @@ podman run -d --name ${container_name} \
     -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro,z \
     -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX}:z \
     -v /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:ro,z \
-    -v /etc/nova/provider_config/fake-compute-${COMPUTE_INDEX}:/etc/nova/provider_config:ro,z \
     ${NOVA_IMAGE} \
     nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/nova.conf.d/99-fake-override.conf
 REMOTE_EOF
@@ -232,7 +220,7 @@ set -x
 for container in \$(podman ps -a --format '{{.Names}}' | grep '^nova-fake-compute-'); do
     podman rm -f \${container} 2>/dev/null || true
 done
-rm -rf /etc/nova/nova.conf /etc/nova/nova.conf.d /etc/nova/provider_config
+rm -rf /etc/nova/nova.conf /etc/nova/nova.conf.d
 rm -rf /var/lib/nova/fake-compute-*
 REMOTE_EOF
         else
