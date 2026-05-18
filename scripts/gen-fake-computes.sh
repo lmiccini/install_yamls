@@ -192,7 +192,7 @@ set -ex
 mkdir -p /var/lib/nova/fake-compute-${COMPUTE_INDEX}
 
 podman rm -f ${container_name} 2>/dev/null || true
-podman run -d --name ${container_name} \
+podman run -d --name ${container_name} --user root \
     -v /etc/nova/nova.conf:/etc/nova/nova.conf:ro,z \
     -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro,z \
     -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX}:z \
