@@ -60,12 +60,12 @@ function wait_for_ssh {
 
 function extract_nova_config {
     local config_dir=$1
-    echo "Extracting nova config from conductor pod..."
+    local cell=${NOVA_CELL:-cell1}
+    echo "Extracting nova config from nova-${cell}-conductor pod..."
 
-    local conductor_pod
-    conductor_pod=$(oc get pods -n ${NAMESPACE} -l service=nova-conductor -o name | head -n1)
-    if [ -z "${conductor_pod}" ]; then
-        echo "ERROR: Cannot find nova-conductor pod in namespace ${NAMESPACE}"
+    local conductor_pod="nova-${cell}-conductor-0"
+    if ! oc get pod -n ${NAMESPACE} ${conductor_pod} &>/dev/null; then
+        echo "ERROR: Cannot find pod ${conductor_pod} in namespace ${NAMESPACE}"
         exit 1
     fi
 
@@ -75,7 +75,7 @@ function extract_nova_config {
         echo "ERROR: Failed to extract nova config from ${conductor_pod}"
         exit 1
     fi
-    echo "Nova config extracted to ${config_dir}/nova-base.conf"
+    echo "Nova config extracted from ${conductor_pod} to ${config_dir}/nova-base.conf"
 }
 
 function generate_fake_compute_config {
