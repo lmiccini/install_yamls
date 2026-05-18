@@ -176,10 +176,10 @@ mkdir -p /var/lib/nova/fake-compute-${COMPUTE_INDEX}
 
 podman rm -f ${container_name} 2>/dev/null || true
 podman run -d --name ${container_name} \
-    -v /etc/nova/nova.conf:/etc/nova/nova.conf:ro \
-    -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro \
-    -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX} \
-    -v /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:ro \
+    -v /etc/nova/nova.conf:/etc/nova/nova.conf:ro,z \
+    -v /etc/nova/nova.conf.d/fake-compute-${COMPUTE_INDEX}.conf:/etc/nova/nova.conf.d/99-fake-override.conf:ro,z \
+    -v /var/lib/nova/fake-compute-${COMPUTE_INDEX}:/var/lib/nova/fake-compute-${COMPUTE_INDEX}:z \
+    -v /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:ro,z \
     ${NOVA_IMAGE} \
     nova-compute --config-file /etc/nova/nova.conf --config-file /etc/nova/nova.conf.d/99-fake-override.conf
 REMOTE_EOF
