@@ -101,6 +101,12 @@ disable_group_policy_check_upcall = true
 
 [vnc]
 enabled = false
+
+[database]
+connection = sqlite:///
+
+[api_database]
+connection = sqlite:///
 EOF
 }
 
