@@ -124,9 +124,6 @@ function deploy {
         local vm_ip="${BASE_IP}.$((IP_OFFSET + VM_INDEX))"
         wait_for_ssh "${vm_ip}"
 
-        echo "Ensuring podman is installed on VM ${VM_INDEX} (${vm_ip})..."
-        ssh ${SSH_OPTS} root@${vm_ip} "command -v podman >/dev/null 2>&1 || dnf install -y podman"
-
         configure_vlan_interface "${vm_ip}" "${VM_INDEX}"
 
         scp ${SSH_OPTS} "${MY_TMP_DIR}/nova-base.conf" root@${vm_ip}:/tmp/nova-base.conf

@@ -469,6 +469,8 @@ edpm_fake_compute: export EDPM_COMPUTE_VCPUS=${FAKE_COMPUTE_VCPUS}
 edpm_fake_compute: export EDPM_COMPUTE_RAM=${FAKE_COMPUTE_RAM}
 edpm_fake_compute: export EDPM_COMPUTE_DISK_SIZE=${FAKE_COMPUTE_DISK_SIZE}
 edpm_fake_compute: export EDPM_COMPUTE_NETWORK=${NETWORK_ISOLATION_NET_NAME}
+edpm_fake_compute: export VIRT_CUSTOMIZE_NETWORK=
+edpm_fake_compute: export VIRT_CUSTOMIZE_EXTRA=--install podman
 edpm_fake_compute: ## Create VMs for fake nova-compute
 	$(eval $(call vars))
 	scripts/gen-ansibleee-ssh-key.sh
