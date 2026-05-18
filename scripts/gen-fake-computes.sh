@@ -21,7 +21,7 @@ COMPUTES_PER_VM=${3:?Usage: $0 deploy|cleanup NUM_VMS COMPUTES_PER_VM [NOVA_IMAG
 NOVA_IMAGE=${4:-"quay.io/podified-antelope-centos9/openstack-nova-compute:current-podified"}
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-EDPM_OUTPUT_DIR=${EDPM_OUTPUT_DIR:-"${SCRIPTPATH}/../devsetup/out/edpm"}
+EDPM_OUTPUT_DIR=${EDPM_OUTPUT_DIR:-"${SCRIPTPATH}/../out/edpm"}
 SSH_KEY=${SSH_KEY:-"${EDPM_OUTPUT_DIR}/ansibleee-ssh-key-id_rsa"}
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${SSH_KEY}"
 NAMESPACE=${NAMESPACE:-openstack}
