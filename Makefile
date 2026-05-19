@@ -1077,6 +1077,10 @@ instanceha_deploy: ## Deploy InstanceHA with noop fencing for fake computes
 instanceha_cleanup: ## Remove InstanceHA CR and fencing secret
 	scripts/gen-instanceha.sh cleanup
 
+.PHONY: instanceha_test_deps
+instanceha_test_deps: ## Install Ansible collections required by InstanceHA tests
+	ansible-galaxy collection install openstack.cloud kubernetes.core --force
+
 .PHONY: openstack_crds
 openstack_crds: openstack_repo namespace ## installs all openstack CRDs. Useful for infrastructure dev
 	OPENSTACK_BUNDLE_IMG=${OPENSTACK_BUNDLE_IMG} OUT=${OUT} OPENSTACK_CRDS_DIR=${OPENSTACK_CRDS_DIR} OPERATOR_BASE_DIR=${OPERATOR_BASE_DIR} bash scripts/openstack-crds.sh
