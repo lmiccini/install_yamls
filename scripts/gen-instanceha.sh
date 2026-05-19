@@ -51,6 +51,41 @@ EOF
     echo "Creating fencing secret with noop driver for $((NUM_VMS * COMPUTES_PER_VM)) fake computes..."
     oc apply -n ${NAMESPACE} -f "${MY_TMP_DIR}/fencing-secret.yaml"
 
+    cat > "${MY_TMP_DIR}/instanceha-config.yaml" <<EOF
+apiVersion: v1
+data:
+  config.yaml: |
+    config:
+      EVACUABLE_TAG: "trait:CUSTOM_HA"
+      TAGGED_IMAGES: "true"
+      TAGGED_FLAVORS: "true"
+      TAGGED_AGGREGATES: "false"
+      SMART_EVACUATION: "false"
+      DELTA: "30"
+      DELAY: "0"
+      POLL: "45"
+      THRESHOLD: "50"
+      WORKERS: "4"
+      RESERVED_HOSTS: "false"
+      FORCE_RESERVED_HOST_EVACUATION: "false"
+      LEAVE_DISABLED: "false"
+      CHECK_KDUMP: "false"
+      LOGLEVEL: "info"
+      DISABLED: "false"
+      SKIP_SERVERS_WITH_NAME: ""
+      CHECK_HEARTBEAT: "false"
+      HEARTBEAT_TIMEOUT: "120"
+      ORCHESTRATED_RESTART: "false"
+      FORCE_ENABLE: "false"
+kind: ConfigMap
+metadata:
+  name: ${INSTANCEHA_NAME}-config
+  namespace: ${NAMESPACE}
+EOF
+
+    echo "Creating InstanceHA configmap..."
+    oc apply -n ${NAMESPACE} -f "${MY_TMP_DIR}/instanceha-config.yaml"
+
     cat > "${MY_TMP_DIR}/instanceha.yaml" <<EOF
 apiVersion: instanceha.openstack.org/v1beta1
 kind: InstanceHa
@@ -60,6 +95,7 @@ metadata:
 spec:
   caBundleSecretName: combined-ca-bundle
   fencingSecret: ${FENCING_SECRET}
+  instanceHaConfigMap: ${INSTANCEHA_NAME}-config
 EOF
 
     echo "Creating InstanceHa CR..."
@@ -71,6 +107,9 @@ EOF
 function cleanup {
     echo "Removing InstanceHa CR..."
     oc delete instanceha -n ${NAMESPACE} ${INSTANCEHA_NAME} --ignore-not-found
+
+    echo "Removing configmap..."
+    oc delete configmap -n ${NAMESPACE} ${INSTANCEHA_NAME}-config --ignore-not-found
 
     echo "Removing fencing secret..."
     oc delete secret -n ${NAMESPACE} ${FENCING_SECRET} --ignore-not-found
