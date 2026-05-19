@@ -315,6 +315,9 @@ if [ ! -e /home/cloud-admin/.ssh/authorized_keys ]; then
 	sudo chmod 0600 /home/cloud-admin/.ssh/authorized_keys
 fi
 
+# Ensure SSH host keys exist
+ssh-keygen -A
+
 # Set network for current session
 nmcli device set eth0 managed yes
 n=0
