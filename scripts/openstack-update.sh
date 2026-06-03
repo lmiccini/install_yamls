@@ -133,6 +133,20 @@ echo "MinorUpdateOVNDataplane completed"
 
 update_event MinorUpdateOVNDataplane Completed
 
+# RabbitMQ 4.2 workaround: wait for the new image to be applied, then wipe
+# persistent storage so the new version can start with a clean Mnesia database.
+RABBITMQ_IMG=${RABBITMQ_DEPL_IMG:-quay.io/$CONTAINERS_NAMESPACE/openstack-rabbitmq:$CONTAINERS_TARGET_TAG}
+update_event "Waiting for new RabbitMQ image to be applied"
+for sts in $(oc get sts -n $NAMESPACE -o name | grep rabbitmq); do
+    oc wait "$sts" -n $NAMESPACE \
+        --for=jsonpath='{.spec.template.spec.containers[0].image}'="$RABBITMQ_IMG" \
+        --timeout=$TIMEOUT
+done
+
+update_event "Wiping RabbitMQ PVCs and pods for clean restart"
+oc get pvc -n $NAMESPACE -o name | grep rabbitmq | xargs -r oc delete -n $NAMESPACE
+oc get pod -n $NAMESPACE -o name | grep rabbitmq | xargs -r oc delete -n $NAMESPACE --force
+
 # wait for control plane update to complete
 oc wait $OPENSTACK_VERSION_CR --for=condition=MinorUpdateControlplane --timeout=$TIMEOUT
 
